@@ -1,0 +1,1 @@
+import {ArrowLeft} from 'lucide-react';export default function NotFound(){return <main className="standalone-message"><h1>Страница не найдена</h1><p>Возможно, расход был удалён или ссылка устарела.</p><a href="/" className="primary-button"><ArrowLeft size={17}/>Перейти к обзору</a></main>}

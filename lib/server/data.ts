@@ -1,0 +1,2 @@
+import type {Database} from './db';
+export async function deleteImportedData(database:Database,userId:string){return database.batch([database.prepare('DELETE FROM detection_candidates WHERE user_id=?').bind(userId),database.prepare('DELETE FROM transactions WHERE user_id=?').bind(userId),database.prepare('DELETE FROM transaction_imports WHERE user_id=?').bind(userId),database.prepare('DELETE FROM recurring_expenses WHERE user_id=? AND source=?').bind(userId,'detected')])}
