@@ -12,3 +12,17 @@ work
 .agents
 *.zip
 *.log
+tests
+coverage
+build
+.next
+.vinext
+.openai
+*.md
+*.tsbuildinfo
+*.dump
+*.backup
+*.pem
+*.key
+*.crt
+cache

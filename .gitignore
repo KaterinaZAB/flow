@@ -42,3 +42,21 @@ next-env.d.ts
 *.tsbuildinfo
 
 !.env.example
+
+# generated output, local credentials and editor/OS state
+build/
+cache/
+*.log
+*.dump
+*.backup
+*.sql.gz
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+Thumbs.db
+Desktop.ini
+*.swp
+*.tmp
+.idea/

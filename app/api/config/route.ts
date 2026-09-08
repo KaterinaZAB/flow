@@ -1,0 +1,1 @@
+export function GET(){return Response.json({schemaVersion:2,catalogVersion:1,formats:['csv','xlsx','pdf'],wholeVaultSync:true,maxEnvelopeBytes:9437184},{headers:{'Cache-Control':'public, max-age=300'}});}

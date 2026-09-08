@@ -1,53 +1,35 @@
-# Potok
+# Flow / Поток — local-first PWA
 
-PWA for subscriptions and recurring expenses. Existing React/Vinext UI, Node SSR and REST backend, PostgreSQL, same-origin Caddy reverse proxy with automatic HTTPS.
+Управление регулярными расходами без регистрации. CSV, XLSX и PDF разбираются на устройстве; расходы, операции и настройки хранятся в IndexedDB. Детерминированный detection engine и рекомендации работают без LLM. Исходная выписка не отправляется серверу.
 
-## Start here
+Необязательный encrypted vault синхронизирует полный workspace: браузер шифрует его AES-256-GCM, Node/Vinext сохраняет ciphertext в PostgreSQL. Сервер не получает ключ расшифровки. Публичный каталог работает с локальным offline fallback. Google/Gmail/OAuth отсутствуют. Пример данных изолирован от личного workspace.
 
-- [Deployment, environment, Google Console, backup and restore](DEPLOYMENT.md)
-- [Initial feature/mock audit](AUDIT.md)
-- [Security boundaries and pending verification](SECURITY.md)
-- [Architecture](ARCHITECTURE.md)
+## Разработка
 
-## Local development
+Node 22.13+ (проверено Node 24), npm:
 
-Node 22.13+ and Docker Compose v2:
+    npm ci
+    npm ci --prefix backend
+    npm run dev
 
-```sh
-cp .env.example .env
-# Set database password and matching DATABASE_URL.
-npm ci
-npm install --prefix backend
-docker compose -f docker-compose.dev.yml up -d --wait
-npm run db:migrate
-npm run db:seed
-npm run dev
-```
+PostgreSQL не нужен для локального режима. Для серверной синхронизации — [deployment](DEPLOYMENT.md). Для offline preview:
 
-Guest mode works without Google credentials. Personal data requires PostgreSQL and configured Google OAuth. Google login and Gmail readonly consent are separate. No GPT/OpenAI identity provider and no active LLM provider exist.
+    npm run build
+    npm start
 
-## Production
+Production требует HTTPS; локальный localhost работает как secure context. Service worker формируется production сборкой.
 
-```sh
-cp .env.example .env
-# Set APP_DOMAIN, POSTGRES_PASSWORD, Google credentials and encryption key.
-docker compose build
-docker compose up -d --wait
-```
+## Проверки
 
-Caddy serves the configured domain over HTTPS and proxies to Node. The frontend uses server rendering, so it cannot be replaced by an nginx static export without changing the current architecture. Migrations and reference-catalog seed run before the backend starts. No personal fixtures are seeded. A named PostgreSQL volume persists data.
+    npm run typecheck
+    npm test
+    npm run lint
+    npm run build
 
-## Checks
+[Архитектура](ARCHITECTURE.md) · [Безопасность](SECURITY.md) · [API](API.md) · [Миграции](MIGRATION.md) · [Deployment/backup](DEPLOYMENT.md).
 
-```sh
-npm run typecheck
-npm run lint
-npm test
-npm run build
-```
+Benchmark: tests/fixtures/detection содержит только синтетические данные. Метрики в tests/detection-benchmark.ts считают TP/FP/FN/precision/recall по точному набору evidence и периоду. Порог 0.8 даёт на маленьком fixture precision 1, recall 0.6; при 0.7 — 1/1. Это регрессионный пример, не оценка качества на реальных банках.
 
-Real database/API verification: `RUN_POSTGRES_E2E=yes node --env-file=.env scripts/test-postgres.mjs` against an isolated test database and running configured test app. Live Google login and Gmail consent require external credentials and test-user authorization; the test runner seeds only its own test sessions.
+Текущий Vinext — beta. Production bundle и unit/integration checks не заменяют проверку Linux image и браузерных сценариев перед релизом.
 
-## Important status
-
-The previous app already had real Google/Gmail/import/detection code backed by D1/SQLite. It has been adapted for Node/PostgreSQL. Guest data remains deliberately synthetic and separate. The Docker/PostgreSQL runtime has not yet been executed in this restricted environment: npm registry and Docker config access were denied. Follow the verification steps before treating this as a validated production release. Existing D1/SQLite data is not automatically migrated.
+[Технический отчёт проверки и оставшиеся ограничения](PRODUCTION_REVIEW.md).

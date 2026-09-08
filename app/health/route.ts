@@ -1,7 +1,7 @@
-import { db } from '@/lib/server/db';
+import { databasePool } from '@/lib/server/postgres';
 export async function GET() {
   try {
-    await db().prepare('SELECT 1 AS alive').first();
+    await databasePool().query('SELECT 1 AS alive');
     return Response.json(
       { status: 'ok' },
       { headers: { 'Cache-Control': 'no-store' } },

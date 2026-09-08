@@ -2,17 +2,6 @@ import type { Service } from './types.ts';
 export const services: Service[] = [
   {
     id: 'yandex-plus',
-    emailMatchers: {
-      senderDomains: ['plus.yandex.ru'],
-      subjectPatterns: [
-        'receipt',
-        'payment',
-        'subscription',
-        'trial',
-        'чек',
-        'подписка',
-      ],
-    },
     name: 'Яндекс Плюс',
     category: 'subscription',
     group: 'bundle',
@@ -24,17 +13,6 @@ export const services: Service[] = [
   },
   {
     id: 'chatgpt',
-    emailMatchers: {
-      senderDomains: ['openai.com'],
-      subjectPatterns: [
-        'receipt',
-        'payment',
-        'subscription',
-        'trial',
-        'чек',
-        'подписка',
-      ],
-    },
     name: 'ChatGPT',
     category: 'software',
     group: 'ai',
@@ -47,17 +25,6 @@ export const services: Service[] = [
   },
   {
     id: 'netflix',
-    emailMatchers: {
-      senderDomains: ['netflix.com'],
-      subjectPatterns: [
-        'receipt',
-        'payment',
-        'subscription',
-        'trial',
-        'чек',
-        'подписка',
-      ],
-    },
     name: 'Netflix',
     category: 'subscription',
     group: 'video',
@@ -68,17 +35,6 @@ export const services: Service[] = [
   },
   {
     id: 'spotify',
-    emailMatchers: {
-      senderDomains: ['spotify.com'],
-      subjectPatterns: [
-        'receipt',
-        'payment',
-        'subscription',
-        'trial',
-        'чек',
-        'подписка',
-      ],
-    },
     name: 'Spotify',
     category: 'subscription',
     group: 'music',
@@ -148,17 +104,6 @@ export const services: Service[] = [
   },
   {
     id: 'adobe',
-    emailMatchers: {
-      senderDomains: ['adobe.com'],
-      subjectPatterns: [
-        'receipt',
-        'payment',
-        'subscription',
-        'trial',
-        'чек',
-        'подписка',
-      ],
-    },
     name: 'Adobe',
     category: 'software',
     merchantAliases: ['ADOBE', 'ADOBE SYSTEMS'],

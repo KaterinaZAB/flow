@@ -6,11 +6,11 @@ services:
       POSTGRES_USER: potok
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
     ports: ["127.0.0.1:5432:5432"]
-    volumes: ["postgres_dev_data:/var/lib/postgresql/data"]
+    volumes: ["vault_postgres_dev_data:/var/lib/postgresql/data"]
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U potok -d potok"]
       interval: 5s
       timeout: 5s
       retries: 15
 volumes:
-  postgres_dev_data:
+  vault_postgres_dev_data:

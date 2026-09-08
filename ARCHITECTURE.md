@@ -1,34 +1,32 @@
-# Architecture
+# Архитектура
 
-## Runtime
+Browser PWA → localCommand / repositories → IndexedDB workspace → domain analytics/detection/recommendations → UI.
 
-Caddy (frontend HTTPS/reverse proxy) -> Node/Vinext (React Server Components + REST) -> PostgreSQL.
+Optional: workspace → Web Crypto encrypt → HTTPS REST → Node vault module → PostgreSQL ciphertext.
+Restore: recovery package → HKDF locally → authenticated download → AES-GCM decrypt → Zod validation → IndexedDB transaction.
 
-The existing App Router and components remain intact. SSR reads the same server services as REST routes without a redundant loopback HTTP request. Client mutations use `lib/api/client.ts`; authenticated REST never returns guest fixtures. `lib/server/product-data.ts` is the centralized server data-provider boundary. Guest data lives only in `lib/demo` and tests/examples.
+## Локальные модули
 
-## Modules
+- lib/local/schema.ts: версия 2, строгая проверка расходов/операций/кандидатов/импортов/настроек.
+- lib/local/repository.ts: отдельная база potok-local-v1; stores workspace и device. Чтение/запись состояния в одной IndexedDB readwrite transaction, уведомления вкладок через BroadcastChannel.
+- lib/local/actions.ts: совместимый адаптер существующих форм; Response — локальный результат, не fetch. Финансовых HTTP endpoints больше нет.
+- lib/import: CSV/XLSX/PDF parser. Исходный File и расшифрованные строки не покидают браузер.
+- lib/domain: деньги в integer minor units, календарный detection weekly/monthly/quarterly/yearly, прогнозы и рекомендации. Производные значения пересчитываются локально.
+- lib/local/catalog.ts: проверенный публичный каталог из API/IndexedDB; bundled catalog остаётся fallback для offline.
+- lib/vault/crypto.ts: Web Crypto; lib/vault/sync.ts: отдельный sync coordinator.
 
-- Auth: `lib/google` and `app/auth`; verified Google subject, server sessions, separate Gmail consent.
-- Persistence: `lib/server/postgres.ts`; pool and parameterized repository boundary, atomic batches. Drizzle schema in `db/schema.ts`; generated migrations in `migrations/postgres`.
-- Users: `/api/me` profile and preferences; `/api/account` deletion.
-- Expenses/transactions: `lib/server/expenses.ts`; owner-scoped CRUD and provider enrichment.
-- Imports: `lib/import` parsers, MIME/body limits; `lib/server/imports.ts` persistence.
-- Detection/confirmation: `lib/domain/detection.ts` and `lib/server/candidates.ts`.
-- Analytics: server `projections.ts`; `/api/dashboard`; client renders prepared results.
-- Recommendations: server rule engine, `/api/recommendations` and server-rendered page.
-- Gmail: candidate search, MIME preprocessing, rules/schema validation, reconciliation and incremental sync in `lib/gmail` + `lib/server/gmail.ts`.
-- Catalog: versioned matching metadata in `lib/domain/catalog.ts`, seeded reference services and aliases in PostgreSQL.
+## Сервер
 
-## Public and personal data
+Node/Vinext обслуживает публичный shell, REST каталога и vault. SSR не читает финансовое хранилище. PostgreSQL: vaults, services, service_aliases, app_migrations. Инструкции отмены входят в публичный JSON metadata сервисов; версии правил/config — версионированный код. Старые User/Session/financial репозитории и маршруты удалены из runtime.
 
-Public routes display demo expenses and actual demo analytics. A null user is normal. Protected mutations validate sessions and Origin server-side. Guest upload parses real supplied bytes and returns preview candidates without persisting. Saving after login currently requires re-upload; personal data is not silently copied from the demo dataset.
+## Sync
 
-## Database
+Полный snapshot, debounce 1.5 сек после commit; sync при открытии, online event и вручную. Web Locks сериализуют sync между вкладками одного origin. Незасинхронизированная локальная revision сохраняется при ошибке. При новой облачной версии и локальных изменениях — 409/conflict UI. Выбор cloud/local требует подтверждения; даже явная перезапись использует свежую expectedVersion и не обходит CAS.
 
-users, google_identities, auth_sessions, oauth_states, gmail_connections, recurring_expenses, transactions, transaction_imports, detection_candidates, gmail_receipts, expense_evidence, gmail_events, provider_enrichments, integration_locks, integration_audit, services, service_aliases. Financial amounts and epoch times use bigint where appropriate; adapter rejects unsafe numeric conversion. Existing ISO date strings preserve current domain contracts. No float monetary storage.
+Ключи устройства: non-extractable AES CryptoKey и отдельный auth secret в IndexedDB device. Master secret не хранится открыто; recovery representation хранится обёрнутым AES-GCM под локальным CryptoKey для повторного показа. Финансовый workspace локально открыт: это не защита от захвата устройства.
 
-Legacy SQLite migration files remain for existing regression tests and data migration reference, but production runs PostgreSQL migrations only. No automatic D1-to-PostgreSQL data transfer is performed.
+## Миграции workspace
 
-## Operations
+migrateWorkspace последовательно переводит v1 → v2, проверяет строгую схему и не изменяет входной объект. IndexedDB хранит исходную pre-migration копию и новый current атомарно. Неизвестная/повреждённая версия блокирует запись без очистки. Явный сброс устройства удаляет также migration backups. Decrypt старого vault использует его schemaVersion в AAD, затем ту же миграцию.
 
-Single backend process, bounded synchronous imports/Gmail batches, process-local rate limits, hashed cookie sessions, encrypted Gmail credentials. No Redis, Kubernetes or message queue. See DEPLOYMENT.md and SECURITY.md for operational setup and unverified external dependencies.
+LocalApp компонует страницы; hooks/use-local-workspace.ts управляет жизненным циклом IndexedDB/catalog/sync. Domain не зависит от React. localCommand возвращает Response только как совместимый локальный результат, не выполняет HTTP.

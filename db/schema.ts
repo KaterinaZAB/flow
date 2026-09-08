@@ -1,4 +1,27 @@
-import {pgTable,text,integer,timestamp} from 'drizzle-orm/pg-core';
-export const vaults=pgTable('vaults',{id:text().primaryKey(),authVerifierHash:text('auth_verifier_hash').notNull(),encryptedBlob:text('encrypted_blob').notNull(),version:integer().notNull().default(1),schemaVersion:integer('schema_version').notNull().default(1),createdAt:timestamp('created_at',{withTimezone:true}).notNull().defaultNow(),updatedAt:timestamp('updated_at',{withTimezone:true}).notNull().defaultNow()});
-export const serviceCatalog=pgTable('services',{id:text().primaryKey(),name:text().notNull(),category:text().notNull(),metadata:text().notNull()});
-export const serviceAliases=pgTable('service_aliases',{id:text().primaryKey(),serviceId:text('service_id').notNull().references(()=>serviceCatalog.id,{onDelete:'cascade'}),alias:text().notNull()});
+import { pgTable, text, integer, timestamp } from 'drizzle-orm/pg-core';
+export const vaults = pgTable('vaults', {
+  id: text().primaryKey(),
+  authVerifierHash: text('auth_verifier_hash').notNull(),
+  encryptedBlob: text('encrypted_blob').notNull(),
+  version: integer().notNull().default(1),
+  schemaVersion: integer('schema_version').notNull().default(1),
+  createdAt: timestamp('created_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+  updatedAt: timestamp('updated_at', { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+export const serviceCatalog = pgTable('services', {
+  id: text().primaryKey(),
+  name: text().notNull(),
+  category: text().notNull(),
+  metadata: text().notNull(),
+});
+export const serviceAliases = pgTable('service_aliases', {
+  id: text().primaryKey(),
+  serviceId: text('service_id')
+    .notNull()
+    .references(() => serviceCatalog.id, { onDelete: 'cascade' }),
+  alias: text().notNull(),
+});

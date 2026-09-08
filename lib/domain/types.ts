@@ -33,14 +33,8 @@ export const currencies = [
   'TRY',
 ] as const;
 /** All monetary amounts are integer minor units (kopecks/cents). */
+/** gmail is a legacy persisted provenance value, not an available integration. */
 export type ExpenseSource = 'manual' | 'bank-import' | 'gmail';
-export type ExpenseEvidence = {
-  id: string;
-  expenseId: string | null;
-  source: 'bank_transaction' | 'gmail_receipt';
-  sourceId: string;
-  confidence: number;
-};
 export type RecurringExpense = {
   id: string;
   name: string;
@@ -93,18 +87,12 @@ export type CancellationStrategy =
   | { type: 'external-url'; url: string }
   | { type: 'instructions'; steps: string[] }
   | { type: 'unsupported' };
-export type ServiceEmailMatcher = {
-  senderDomains?: string[];
-  senderEmails?: string[];
-  subjectPatterns?: string[];
-};
 export type Service = {
   id: string;
   name: string;
   category: RecurringExpenseType;
   group?: string;
   merchantAliases: string[];
-  emailMatchers?: ServiceEmailMatcher;
   website?: string;
   manageSubscriptionUrl?: string;
   cancellationUrl?: string;

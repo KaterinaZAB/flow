@@ -1,21 +1,48 @@
-# Security boundaries and verification
+# Security / threat model
 
-- Only a verified Google subject creates a login identity. Email is not an identity key. Login requests no Gmail scope.
-- Opaque 256-bit session cookies: HttpOnly, SameSite=Lax, Secure and __Host prefix under HTTPS. Database stores hashes. Expiration is checked server-side on every authenticated operation. Logout deletes the session.
-- OAuth uses random state bound to HttpOnly cookie, nonce, PKCE, short expiration and single-use DELETE RETURNING. Google ID token signature/audience/issuer are verified. Gmail consent is bound to the same logged-in subject.
-- OAuth token encryption uses AES-GCM with per-value nonce and user-bound additional authenticated data. Tokens, email bodies and bank files are not logged or exposed through APIs.
-- Personal repositories always scope by user_id. API operations authorize independently of public page access. Guest provider never writes its synthetic entities to the database.
-- Same-origin deployment: mutation Origin validation, backend port private to Compose network, trusted forwarding configured at Caddy, no wildcard CORS. Request rate and streaming upload size limits apply. Development does not pretend to provide proxy/TLS hardening.
-- Parameterized PostgreSQL queries and transactional batches. Migration checksums and advisory lock prevent concurrent schema changes. Database credentials must not be exposed outside the backend.
-- Uploads validate size, MIME, format signature and parsed structure, then discard original bytes. No public upload directory. CSV/XLSX/PDF row limits and decompression restrictions are also in parser modules.
-- Email HTML is converted to sanitized text, never rendered raw. Only extracted financial metadata persists. AI outputs cannot modify expenses without validation and user confirmation; no AI provider is currently enabled.
-- Unhandled API errors return generic text and a code. Structured logs exclude query strings, cookies, tokens and payloads. /health exposes availability only.
-- Deletion APIs support bank-derived data, Gmail-derived data, individual expenses and whole-account cascade deletion. Account deletion first attempts Gmail disconnect/revoke.
+## Проверяемое обещание
 
-## Pending deployment verification
+Браузер шифрует финансовый сейф до сетевого запроса. Сервер не получает ключ расшифровки. Утечка новой PostgreSQL базы или её резервной копии не раскрывает содержание ciphertext при сохранности клиента и recovery secret.
 
-The local environment denied npm registry access and Docker configuration access. Consequently driver installation, live PostgreSQL API tests, container startup, HTTPS forwarding and live Google/Gmail consent still require execution in the deployment/test environment. Do not infer those checks from a passing TypeScript build. Run `scripts/test-postgres.mjs` against an isolated database, then manual Google test-user consent flows before public use.
+## Crypto protocol v1
 
-## Current operational limits
+- Master secret: 32 случайных байта Web Crypto getRandomValues.
+- HKDF-SHA-256, salt potok:v1:<vault UUID>, отдельные info vault-encryption и vault-auth.
+- AES-256-GCM, 128-bit tag, случайный 96-bit IV на каждой операции.
+- AAD связывает vault ID, encryptionVersion, algorithm и schemaVersion.
+- Auth secret: отдельный HKDF output 256 bit, только в Authorization: Bearer по HTTPS. Сервер хранит SHA-256 verifier и сравнивает constant-time. Это высокоэнтропийный секрет, не пароль пользователя.
+- Recovery: POTOK1:<UUID>:<64 hex symbols in groups of four>. Это представление случайного секрета, не самодельный mnemonic/KDF. Проверка структуры + GCM tag выявляют ошибку.
+- Non-extractable CryptoKey хранится structured-clone в IndexedDB; это ограничивает exportKey, но не злоупотребление decrypt/encrypt вредоносным кодом.
 
-Rate limits are process-local and the intended deployment is one backend process. Service catalog is versioned source metadata, seeded into PostgreSQL; editing catalog tables alone does not hot-reload matching rules. No independent background worker or automatic revoked-account purge schedule is provided. Users can delete their own account explicitly.
+Основания: [Web Crypto deriveKey/HKDF](https://developer.mozilla.org/en-US/docs/Web/API/SubtleCrypto/deriveKey), [AES-GCM IV](https://developer.mozilla.org/en-US/docs/Web/API/AesGcmParams), [CSP](https://developer.mozilla.org/en-US/docs/Web/HTTP/Guides/CSP).
+
+## Metadata exposure
+
+Сервер видит IP, user-agent на уровне HTTP, timestamp, vault ID, размеры ciphertext, частоту запросов, версии и verifier. Application log пишет request ID, обобщённый path, status и duration; query, bodies, Authorization, recovery и финансовые значения не логируются. Reverse proxy access log не включён. Настройки внешнего TLS-прокси также должны исключать чувствительные заголовки.
+
+## Что не защищено
+
+Malware, вредоносные расширения, XSS в origin, переданный другому человеку recovery key, полностью скомпрометированный браузер. Оператор, способный подменить JavaScript/PWA update, способен атаковать будущий клиент; zero-knowledge storage не означает доверие к вредоносной поставке кода. Независимый аудит и контроль цепочки сборки необходимы для более сильной модели угроз.
+
+Локальный workspace не шифруется at rest. Потеря устройства/очистка браузера без сохранённого recovery/backup невосстановимы. Whole-vault sync не объединяет изменения автоматически; злонамеренный сервер может удалить/откатить ciphertext. Passkeys, QR, key rotation/device revocation и защита от rollback — не реализованы.
+
+## XSS / PWA review
+
+- Production launcher назначает nonce CSP: scripts self + nonce; unsafe-eval отсутствует; object-src none, base-uri none, frame-ancestors none, connect-src self. Vinext получает nonce через request CSP.
+- Inline styles разрешены для существующих React chart/layout компонентов. Trusted Types пока не включены: требуется совместимость с React/Vinext/PDF. Это ограничение, не выполненная защита.
+- Неиспользуемый ChartStyle с dangerouslySetInnerHTML удалён. Финансовые строки отображаются React как текст. Внешние письма не загружаются; отключённый Gmail parser удалён.
+- Аналитические/сторонние scripts отсутствуют. Ссылки из публичного каталога валидируются как HTTPS. Каталог — недоверенные данные, не исполняемый код.
+- Service worker кеширует только публичный shell и build assets. API, decrypted state, blobs, recovery и auth не входят в Cache Storage. При офлайн-загрузке используются header/HTML одной публичной shell response.
+- npm audit: четыре moderate advisory относятся к dev-only цепочке drizzle-kit → esbuild-kit → esbuild. Уязвимость dev server не устраняется принудительным downgrade Drizzle; development tooling не публикуется. Production-only audit проверяется отдельно.
+
+## Backend
+
+HTTPS same-origin, Origin validation на writes; Bearer не использует cookie. Strict envelope schema/streamed size limit 9 MiB, parameterized SQL, atomic version CAS. In-memory rate limiting для single process, healthcheck и graceful shutdown. Создание vault ограничено 5 запросами/IP/час, общий API — 180/IP/мин, память limiter ограничена 10 000 ключей. Лимиты сбрасываются при restart; Caddy переписывает X-Real-IP, backend не должен быть доступен напрямую. Распределённый abuse может расходовать диск: перед открытым публичным сервисом нужны операционные квоты/мониторинг диска; это не решается шифрованием.
+
+Gmail удалён. Нет Google login, email профиля, LLM financial requests или OpenAI frontend secret. Никаких утверждений о неприменимости законодательства не сделано.
+
+## Восстановление и импорт
+
+Если recovery key потерян, сервер не может восстановить данные. Пока устройство доступно, ключ можно повторно сохранить из настроек; при потере всех устройств и recovery данные невосстановимы. Храните ключ отдельно от encrypted backup.
+
+CSV/XLSX ограничены 2 MiB, PDF — 5 MiB и 30 страницами; parsing ограничивает строки и распакованный XLSX. Формулы XLSX, DTD и malformed input отклоняются. CSV не исполняется; CSV-export отсутствует (backup — encrypted JSON), поэтому новые экспорты должны отдельно экранировать spreadsheet formulas. Исходный File не сохраняется в IndexedDB/сервере.

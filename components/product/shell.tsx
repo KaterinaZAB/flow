@@ -1,7 +1,6 @@
 'use client';
 import { ExpenseForm } from './expense-form';
 
-
 import type { ReactNode } from 'react';
 import {
   SidebarProvider,
@@ -21,7 +20,6 @@ import {
   Settings2,
   ArrowUpRight,
   Waves,
-
 } from 'lucide-react';
 const navigation = [
   {
@@ -57,12 +55,10 @@ export function Shell({
   children,
   active,
   userName,
-
 }: {
   children: ReactNode;
   active: string;
   userName?: string;
-
 }) {
   return (
     <SidebarProvider>
@@ -95,7 +91,9 @@ export function Shell({
               <UploadCloud size={20} />
             </span>
             <strong>Данные на устройстве</strong>
-            <p>Выписка анализируется локально. Синхронизация — с шифрованием.</p>
+            <p>
+              Выписка анализируется локально. Синхронизация — с шифрованием.
+            </p>
             <a href="/settings/sources">
               Источники данных <ArrowUpRight size={15} />
             </a>
@@ -115,12 +113,8 @@ export function Shell({
               {userName?.[0]?.toUpperCase() || 'П'}
             </span>
             <span>
-              <strong>
-                Ваш Поток
-              </strong>
-              <small>
-                Хранение и синхронизация
-              </small>
+              <strong>Ваш Поток</strong>
+              <small>Хранение и синхронизация</small>
             </span>
           </a>
         </SidebarFooter>
@@ -137,9 +131,7 @@ export function Shell({
             <Settings2 size={19} />
           </a>
         </header>
-        <main className="main-content">
-          {children}
-        </main>
+        <main className="main-content">{children}</main>
         <footer className="main-footer">
           <span>Поток · Спокойствие в цифрах</span>
           <span>Прогнозы основаны на истории платежей</span>

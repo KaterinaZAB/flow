@@ -10,9 +10,10 @@ export function projectDashboard(
   expenses: RecurringExpense[],
   transactions: Transaction[],
   asOf = today(),
+  baseCurrency = 'RUB',
 ) {
   const items = recommendations(expenses, transactions);
-  const currencies = [...new Set(['RUB', ...expenses.map((e) => e.currency)])];
+  const currencies = [...new Set([baseCurrency, 'RUB', ...expenses.map((e) => e.currency)])];
   return {
     asOf,
     recommendations: items,

@@ -1,0 +1,289 @@
+{
+  "synthetic": true,
+  "asOf": "2026-09-01",
+  "transactions": [
+    {
+      "id": "synthetic-0",
+      "paidAt": "2026-01-31",
+      "amountMinor": 39900,
+      "originalMerchant": "service:yandex-plus",
+      "normalizedMerchant": "service:yandex-plus",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-0",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-1",
+      "paidAt": "2026-02-28",
+      "amountMinor": 39900,
+      "originalMerchant": "service:yandex-plus",
+      "normalizedMerchant": "service:yandex-plus",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-1",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-2",
+      "paidAt": "2026-03-31",
+      "amountMinor": 39900,
+      "originalMerchant": "service:yandex-plus",
+      "normalizedMerchant": "service:yandex-plus",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-2",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-3",
+      "paidAt": "2026-06-21",
+      "amountMinor": 690000,
+      "originalMerchant": "ЖКХ",
+      "normalizedMerchant": "ЖКХ",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-3",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-4",
+      "paidAt": "2026-07-20",
+      "amountMinor": 720000,
+      "originalMerchant": "ЖКХ",
+      "normalizedMerchant": "ЖКХ",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-4",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-5",
+      "paidAt": "2026-08-22",
+      "amountMinor": 705000,
+      "originalMerchant": "ЖКХ",
+      "normalizedMerchant": "ЖКХ",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-5",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-6",
+      "paidAt": "2026-08-01",
+      "amountMinor": 80000,
+      "originalMerchant": "Weekly synthetic",
+      "normalizedMerchant": "Weekly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-6",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-7",
+      "paidAt": "2026-08-08",
+      "amountMinor": 80000,
+      "originalMerchant": "Weekly synthetic",
+      "normalizedMerchant": "Weekly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-7",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-8",
+      "paidAt": "2026-08-15",
+      "amountMinor": 80000,
+      "originalMerchant": "Weekly synthetic",
+      "normalizedMerchant": "Weekly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-8",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-9",
+      "paidAt": "2026-08-22",
+      "amountMinor": 80000,
+      "originalMerchant": "Weekly synthetic",
+      "normalizedMerchant": "Weekly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-9",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-10",
+      "paidAt": "2026-01-05",
+      "amountMinor": 900000,
+      "originalMerchant": "Quarterly synthetic",
+      "normalizedMerchant": "Quarterly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-10",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-11",
+      "paidAt": "2026-04-05",
+      "amountMinor": 900000,
+      "originalMerchant": "Quarterly synthetic",
+      "normalizedMerchant": "Quarterly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-11",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-12",
+      "paidAt": "2026-07-05",
+      "amountMinor": 900000,
+      "originalMerchant": "Quarterly synthetic",
+      "normalizedMerchant": "Quarterly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-12",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-13",
+      "paidAt": "2024-03-07",
+      "amountMinor": 800000,
+      "originalMerchant": "Yearly synthetic",
+      "normalizedMerchant": "Yearly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-13",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-14",
+      "paidAt": "2025-03-07",
+      "amountMinor": 800000,
+      "originalMerchant": "Yearly synthetic",
+      "normalizedMerchant": "Yearly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-14",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-15",
+      "paidAt": "2026-03-07",
+      "amountMinor": 800000,
+      "originalMerchant": "Yearly synthetic",
+      "normalizedMerchant": "Yearly synthetic",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-15",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-16",
+      "paidAt": "2026-02-03",
+      "amountMinor": 19900,
+      "originalMerchant": "Random shop",
+      "normalizedMerchant": "Random shop",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-16",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-17",
+      "paidAt": "2026-06-19",
+      "amountMinor": 410000,
+      "originalMerchant": "Random shop",
+      "normalizedMerchant": "Random shop",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-17",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-18",
+      "paidAt": "2026-08-24",
+      "amountMinor": 3400,
+      "originalMerchant": "Random shop",
+      "normalizedMerchant": "Random shop",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-18",
+      "occurrence": 0
+    },
+    {
+      "id": "synthetic-19",
+      "paidAt": "2026-08-17",
+      "amountMinor": 99900,
+      "originalMerchant": "service:netflix",
+      "normalizedMerchant": "service:netflix",
+      "currency": "RUB",
+      "sourceImportId": "synthetic",
+      "recurringExpenseId": null,
+      "fingerprint": "synthetic-19",
+      "occurrence": 0
+    }
+  ],
+  "expectedRecurringGroups": [
+    {
+      "transactionIds": [
+        "synthetic-0",
+        "synthetic-1",
+        "synthetic-2"
+      ],
+      "billingPeriod": "monthly"
+    },
+    {
+      "transactionIds": [
+        "synthetic-3",
+        "synthetic-4",
+        "synthetic-5"
+      ],
+      "billingPeriod": "monthly"
+    },
+    {
+      "transactionIds": [
+        "synthetic-6",
+        "synthetic-7",
+        "synthetic-8",
+        "synthetic-9"
+      ],
+      "billingPeriod": "weekly"
+    },
+    {
+      "transactionIds": [
+        "synthetic-10",
+        "synthetic-11",
+        "synthetic-12"
+      ],
+      "billingPeriod": "quarterly"
+    },
+    {
+      "transactionIds": [
+        "synthetic-13",
+        "synthetic-14",
+        "synthetic-15"
+      ],
+      "billingPeriod": "yearly"
+    }
+  ]
+}

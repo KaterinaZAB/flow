@@ -1,8 +1,7 @@
 'use client';
 
 import { DeleteAction } from '@/components/product/delete-action';
-import type {Workspace} from '@/lib/local/schema';
-
+import type { Workspace } from '@/lib/local/schema';
 
 import { ExpenseForm } from '@/components/product/expense-form';
 import { ServiceLogo } from '@/components/product/service-logo';
@@ -16,10 +15,17 @@ import { serviceById } from '@/lib/domain/catalog';
 import { cancellationStrategy } from '@/lib/domain/cancellation';
 import { recommendations } from '@/lib/domain/recommendations';
 import { ArrowLeft, History, CheckCircle2 } from 'lucide-react';
-export function LocalDetail({id,state}:{id:string;state:Workspace}) {
- const expense=state.expenses.find(e=>e.id===id);
- if(!expense)return <div className="panel empty-state"><h1>Расход не найден</h1><a href="/expenses">К расходам</a></div>;
- const allHistory=state.transactions,expenses=state.expenses;
+export function LocalDetail({ id, state }: { id: string; state: Workspace }) {
+  const expense = state.expenses.find((e) => e.id === id);
+  if (!expense)
+    return (
+      <div className="panel empty-state">
+        <h1>Расход не найден</h1>
+        <a href="/expenses">К расходам</a>
+      </div>
+    );
+  const allHistory = state.transactions,
+    expenses = state.expenses;
   const history = allHistory.filter((t) => t.recurringExpenseId === id);
   const relevant = recommendations(expenses, allHistory).filter((r) =>
     r.relatedExpenseIds.includes(id),
@@ -174,7 +180,6 @@ export function LocalDetail({id,state}:{id:string;state:Workspace}) {
         <Cancellation
           expense={expense}
           strategy={cancellationStrategy(service)}
-         
         />
         <DeleteAction expenseId={id} />
       </div>

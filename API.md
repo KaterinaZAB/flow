@@ -1,32 +1,22 @@
 # REST API
 
-All endpoints are same-origin. JSON errors use `{ "error": "human-readable message", "code": "HTTP_400" }` (or INTERNAL_ERROR). This retains the existing frontend response contract. `lib/api/client.ts` handles connection failures and expired-session prompts. Do not retry mutations automatically.
+Все пути same-origin. Финансовые expenses/import/dashboard APIs и Google OAuth routes удалены и возвращают 404.
 
-| Method | Route | Access/purpose |
+| Method / path | Назначение | Данные |
 |---|---|---|
-| GET | /health | Process/database readiness, no private data |
-| GET | /api/me | User or guest mode and preferences |
-| PATCH | /api/me | Session; baseCurrency preference |
-| GET | /auth/google/start | Google identity consent |
-| GET | /auth/google/callback | Single-use OAuth completion |
-| POST | /auth/logout | Same-origin; revoke session |
-| GET, POST | /api/expenses | Session; list/create |
-| GET, PATCH, DELETE | /api/expenses/:id | Session + ownership; details/update/delete |
-| GET | /api/dashboard | Session; calculated projections by currency |
-| GET | /api/recommendations | Session; current rule-based observations |
-| GET, POST | /api/imports | Session; history/upload, PDF review when required |
-| POST | /api/demo-import | Guest preview only; no database write |
-| GET, POST | /api/candidates | Session; review and confirm/reject/edit |
-| POST | /auth/gmail/start | Session + explicit gmail-readonly consent |
-| GET | /auth/gmail/callback | Additional consent completion |
-| GET, DELETE | /api/gmail/connection | Session; status/disconnect |
-| POST | /api/gmail/sync | Session; bounded incremental sync |
-| GET, POST | /api/gmail/receipts | Session; suggestions and decisions |
-| POST | /api/gmail/events | Session; financial event decisions (events rendered by server) |
-| DELETE | /api/gmail/data | Session; delete extracted Gmail data |
-| DELETE | /api/data | Session; delete imported bank data |
-| DELETE | /api/account | Session; `{ "confirm": "delete-account" }` |
+| GET /health | Readiness: SELECT 1 | status |
+| GET /api/catalog/services | Публичный каталог из PostgreSQL | service metadata |
+| GET /api/catalog/services/:slug | Публичный сервис | metadata или 404 |
+| GET /api/catalog/version | Версия каталога/алгоритма | публичная config |
+| GET /api/catalog/detection-rules | Публичные aliases/periods | правила |
+| GET /api/config | Formats/feature flags | schemaVersion, formats, limits |
+| POST /api/vaults | Создать | {id, envelope} |
+| GET /api/vaults/:id | Скачать | {id,version,envelope} |
+| PUT /api/vaults/:id | CAS update | {expectedVersion,envelope} |
+| DELETE /api/vaults/:id | Удалить облачную копию | {deleted:true} |
 
-Bank candidate decision body: `{ "ids": ["candidate-id"], "decision": "confirmed" }`; edit/rejected use the same existing route. Financial amounts returned by API are integer minor units. Expense forms submit a decimal string `amount`, validated and converted by the backend. PDF, CSV and XLSX uploads are multipart with `file`, `currency`, optional `mapping`; PDF review uses the existing `pdfReviewed`/`pdfRows` contract.
+Vault endpoints требуют Authorization: Bearer <derived auth secret>. Write requests требуют Origin=APP_ORIGIN. Не ставить секрет в URL. GET/PUT/DELETE проверяют verifier. 401 неверный секрет, 404 неизвестный/удалённый vault, 409 stale version/повтор id, 400 неверный пакет, 413 превышение размера, 503 недоступная база. Ответ ошибки: {error: string, code: string}. Все vault responses no-store.
 
-Server-rendered pages use the same domain services directly, including the explicit guest provider. This avoids calling the public HTTP endpoint from the same Node process while preserving one backend business-logic source.
+Envelope v1: {encryptionVersion:1, algorithm:'AES-256-GCM', schemaVersion:2, iv:base64url, ciphertext:base64url}. База хранит эту оболочку как text и version. Сервер не выполняет дешифрование.
+
+Encrypted envelope schemaVersion 1 также принимается для восстановления старых backups. POST /api/vaults: 5/IP/час; /api/*: 180/IP/мин. HTTP 429 содержит Retry-After.

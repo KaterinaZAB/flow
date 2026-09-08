@@ -1,112 +1,86 @@
-# Linux deployment
+# Linux / Docker deployment
 
-This is a Node SSR + REST application, not a static SPA. `frontend` is Caddy (HTTPS and same-origin reverse proxy), `backend` serves the existing React Server Components, static assets and REST API, and `postgres` stores personal data. The Node process has no exposed host port. No Sites account or Cloudflare binding is required.
+## Предварительно
 
-## Requirements
+Docker Engine + Compose plugin, домен, DNS A (и корректный AAAA при IPv6) на сервер; входящие TCP 80/443. Не открывайте PostgreSQL/3000 наружу. Caddy получает и обновляет TLS сертификат. Нужен исходящий доступ registry/npm при сборке.
 
-Linux server with Docker Engine + Compose v2, DNS A/AAAA record for `app.example.com`, ports 80 and 443 reachable, outbound HTTPS to Google. Remove an incorrect AAAA record if IPv6 is unavailable. Caddy obtains and renews TLS certificates automatically. No separate API domain is needed.
+## Переменные
 
-## First deployment
+- APP_DOMAIN: например app.example.com, без scheme/path.
+- APP_ORIGIN: https://app.example.com в production (Compose задаёт из APP_DOMAIN).
+- POSTGRES_PASSWORD: случайный hex пароль. DATABASE_URL для локальных скриптов/разработки.
+- NODE_ENV, PORT: runtime defaults в Docker.
 
-From the repository directory:
+GOOGLE_CLIENT_ID/SECRET, OAUTH_TOKEN_ENCRYPTION_KEY, SESSION_SECRET и OPENAI_API_KEY больше не нужны. Сервер не получает recovery/master/encryption key через env.
 
-```sh
-cp .env.example .env
-openssl rand -hex 32
-openssl rand -base64 32 | tr '+/' '-_' | tr -d '=\n'
-```
+## Первый запуск
 
-Put the first generated value in `POSTGRES_PASSWORD`, the second in `OAUTH_TOKEN_ENCRYPTION_KEY`. Set `APP_DOMAIN`, Google client ID and secret. Never paste secrets into public issues or Git. Use a hex PostgreSQL password to avoid URL escaping in Compose. The production Compose file derives `APP_ORIGIN` and `DATABASE_URL`; `.env` versions of those two are for local development.
+    cp .env.example .env
+    openssl rand -hex 32
 
-```sh
-chmod 600 .env
-docker compose config --quiet
-docker compose build
-docker compose up -d --wait
-docker compose ps
-curl --fail https://app.example.com/health
-```
+Запишите полученный пароль в POSTGRES_PASSWORD и DATABASE_URL, задайте домен. Не публикуйте .env. Для прежнего deployment сначала прочитайте MIGRATION.md.
 
-On backend startup, migrations run under a PostgreSQL advisory lock with checksums and transactions, then the service catalog is seeded. No guest/user financial fixtures are seeded. A failed migration prevents startup. PostgreSQL data survives container recreation in `postgres_data`. Never run `docker compose down -v` unless intentionally deleting the database.
+    docker compose config --quiet
+    docker compose build
+    docker compose up -d --wait
+    docker compose ps
+    curl --fail https://app.example.com/health
 
-## Google Console
+Backend entrypoint выполняет checksum migrations с advisory lock, затем seed только публичного service catalog, затем Node server. Postgres 17, отдельный persistent volume vault_postgres_data. Caddy — сервис frontend/reverse proxy; assets и SSR shell обслуживает Node, потому что существующий Vinext использует RSC. Frontend с нуля на SPA framework не переписан.
 
-Enable Gmail API. Configure the consent screen, test users during Testing, verified domain, privacy policy and terms. Create a Web application OAuth client with these exact redirect URIs:
+## Local development with server sync
 
-```text
-https://app.example.com/auth/google/callback
-https://app.example.com/auth/gmail/callback
-```
+    npm ci
+    npm ci --prefix backend
+    cp .env.example .env
+    docker compose -f docker-compose.dev.yml up -d
+    npm run db:migrate
+    npm run db:seed
+    npm run dev
 
-Login requests `openid email profile`; Gmail connection is a separate consent with `gmail.readonly`. Production Gmail access may require Google restricted-scope verification and applicable security assessment. App credentials alone do not constitute verification. Without credentials, guest mode remains available and login displays setup status.
+Для production/offline preview: npm run build, затем node --env-file=.env scripts/server.mjs. NODE_ENV=development и localhost APP_ORIGIN допустимы только локально; production требует HTTPS. Web Crypto/Web Locks/IndexedDB должны поддерживаться браузером.
 
-Sessions are random opaque cookies; only their SHA-256 hashes are stored in PostgreSQL. Gmail tokens are encrypted with AES-GCM and never sent to the browser. Keep the encryption key stable across restarts and backup/restore. There is no OpenAI login or currently active LLM provider, so `OPENAI_API_KEY` is not required.
+## Проверка сервера и базы
 
-## Updating and migrations
+    docker compose exec postgres psql -U potok -d potok -c '\dt'
+    docker compose exec postgres psql -U potok -d potok -c 'SELECT id,version,schema_version,octet_length(encrypted_blob) FROM vaults;'
 
-Back up first, pull/copy the new source, then run `sh scripts/deploy.sh`. The existing source's database schema is in `db/schema.ts`, generated PostgreSQL migrations in `migrations/postgres`. Generate new migrations with `npm run db:generate`; review SQL before deploying. Applied migrations must never be edited. Legacy `drizzle/*.sql` files are SQLite test fixtures/reference, not production migrations.
+Ожидаемые таблицы: vaults, services, service_aliases, app_migrations. В vaults нет name/email/amount/payment_date. Не выводите auth header/recovery в терминал. Для проверки отсутствия plaintext используйте искусственное уникальное название расхода и проверьте encrypted_blob после sync.
 
-Existing SQLite/D1 accounts are not automatically transferred. This deployment creates a new PostgreSQL database. Transfer existing personal data only through an explicit, verified export/import migration; changing DATABASE_URL does not migrate data.
+На отдельном тестовом deployment с тем же APP_ORIGIN и доступной DATABASE_URL:
 
-## Backup
+    RUN_VAULT_E2E=yes node --env-file=.env --experimental-strip-types scripts/test-vault.mjs
 
-The dump contains private financial data. Keep it encrypted and access-restricted, separately from the server. Save `.env` and the encryption key securely too.
+Скрипт создаёт только случайный тестовый vault, проверяет реальную PostgreSQL запись, AES recovery, конкурентные PUT → один 200 и один 409, отсутствие plaintext/raw auth secret и удаляет свой vault.
 
-```sh
-mkdir -p backups
-chmod 700 backups
-docker compose exec -T postgres pg_dump -U potok -d potok -Fc > backups/potok.dump
-chmod 600 backups/potok.dump
-```
+## Browser verification
 
-## Restore
+1. Чистый browser profile: / открывается, нет Google login/demo расходов как личных.
+2. Добавить расход → перезагрузить → значение сохранено.
+3. После готовности service worker отключить сеть: list/details/edit/import/recommendations работают.
+4. CSV/XLSX/PDF: в Network нет multipart/financial POST. Подтверждение кандидатов меняет Dashboard локально.
+5. Settings → sync → сохранить recovery. В Network POST/PUT содержат только ID/version/envelope; имена/суммы не видны.
+6. Второй browser profile → recovery → те же расходы.
+7. Оба устройства изменить офлайн; sync A, затем B → конфликт, явный выбор.
+8. Удалить cloud → локальные данные остаются. Удалить local → cloud не удаляется. Encrypted backup + отдельный ключ восстанавливаются локально.
 
-This replaces the selected database's data. Verify the dump and destination first. Stop the application while restoring:
+## Backup / restore PostgreSQL
 
-```sh
-docker compose stop backend frontend
-docker compose exec -T postgres pg_restore -U potok -d potok --clean --if-exists --no-owner < backups/potok.dump
-docker compose up -d --wait
-```
+    docker compose exec -T postgres pg_dump -U potok -d potok -Fc > potok-vaults.dump
 
-## Local development (Node 22.13+)
+Восстановление — на отдельную подготовленную базу, при остановленном backend:
 
-```sh
-cp .env.example .env
-# Set matching POSTGRES_PASSWORD and DATABASE_URL in .env.
-npm ci
-npm install --prefix backend
-docker compose -f docker-compose.dev.yml up -d --wait
-npm run db:migrate
-npm run db:seed
-npm run dev
-```
+    docker compose stop backend
+    docker compose exec -T postgres pg_restore -U potok -d potok --clean --if-exists < potok-vaults.dump
+    docker compose up -d backend
 
-Add `http://localhost:3000/auth/google/callback` and `http://localhost:3000/auth/gmail/callback` to the development Google client. Production must use HTTPS. Cookies are same-origin; no permissive CORS policy is needed. Caddy overwrites forwarding headers. Do not expose the backend directly to the internet or put an untrusted proxy in front of it.
+Restore перезаписывает целевую базу: проверьте имя и сохраните её backup заранее. Dump содержит ciphertext и verifier/метаданные, поэтому храните его с ограниченными правами.
 
-## Verification
 
-```sh
-npm run typecheck
-npm run lint
-npm test
-npm run build
-```
+## Миграции и обновления
 
-For real PostgreSQL/API end-to-end tests, use a separate disposable test database with migrations and a running app whose Google configuration is populated. The runner creates isolated fixture identities/sessions directly in that test DB; it does not simulate a successful live Google consent:
+Единый источник: migrations/vault. npm run db:generate использует Drizzle snapshot/journal в этой же директории; runner применяет SQL по имени, проверяет checksum и использует advisory lock. Не редактируйте уже применённый SQL. Новая схема → новая миграция → review → backup → deployment.
 
-```sh
-RUN_POSTGRES_E2E=yes node --env-file=.env scripts/test-postgres.mjs
-```
+Docker использует отдельные build, production-dependencies и runtime stages. В runtime копируются dist, production npm dependencies, pg и необходимые server/migration/catalog scripts; тесты, .git, .env и host node_modules не копируются.
 
-Actual Google login, logout and Gmail consent must also be tested using an authorized Google test user. The fixture runner cannot verify Google's live consent screen.
-
-## Operational limits
-
-- Gmail sync is bounded and incremental, triggered while the app is open. No unattended background scheduler is included.
-- Imports run synchronously: PDF 5 MB, CSV/XLSX 2 MB, up to 10,000 operations per file. Scanned/password-protected PDF is unsupported.
-- Guest import previews are not persisted; after login the file must be uploaded again to save it. Guest demo entities are never inserted into PostgreSQL.
-- Rule-based parsing and recommendations are real; unknown email formats can remain unrecognized. No LLM fallback is currently configured.
-- Provider cancellation remains an external/manual action; changing status in Potok does not cancel a service with the provider.
-- One application process, in-memory request rate limits. Scale-out requires shared limits and a reviewed concurrency strategy.
-- The backend driver is pinned in `backend/package.json`; its install must complete before database-backed execution. Network access was blocked in the development sandbox, so a backend lockfile and Docker/PostgreSQL execution verification are still pending.
+Храните backup вне сервера, с ограниченным доступом и шифрованием носителя; регулярно проверяйте восстановление. Шифрование не защищает от удаления диска, повреждения или ошибочного deployment. PostgreSQL backup не заменяет recovery key: без него ciphertext не расшифровать.

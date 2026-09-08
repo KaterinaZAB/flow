@@ -2,18 +2,24 @@ import { createRequire } from 'node:module';
 import { resolve } from 'node:path';
 import { readFile, readdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
+import { MIGRATIONS_DIRECTORY } from './migration-path.mjs';
 const { Client } = createRequire(resolve('backend/package.json'))('pg');
 if (!process.env.DATABASE_URL) throw new Error('DATABASE_URL is required');
 const client = new Client({ connectionString: process.env.DATABASE_URL });
 await client.connect();
 try {
   await client.query('SELECT pg_advisory_lock(71834620)');
-  const legacy = await client.query("SELECT to_regclass('public.users') AS legacy" );
-  if (legacy.rows[0].legacy) throw new Error('Legacy database detected. Export old data and use a NEW database for vault architecture. No data was deleted.');
+  const legacy = await client.query(
+    "SELECT to_regclass('public.users') AS legacy",
+  );
+  if (legacy.rows[0].legacy)
+    throw new Error(
+      'Legacy database detected. Export old data and use a NEW database for vault architecture. No data was deleted.',
+    );
   await client.query(
     'CREATE TABLE IF NOT EXISTS app_migrations (name text PRIMARY KEY, checksum text NOT NULL, applied_at timestamptz NOT NULL DEFAULT now())',
   );
-  const directory = resolve('migrations/vault');
+  const directory = resolve(MIGRATIONS_DIRECTORY);
   for (const name of (await readdir(directory))
     .filter((n) => n.endsWith('.sql'))
     .sort()) {
@@ -45,4 +51,3 @@ try {
 } finally {
   await client.end();
 }
-

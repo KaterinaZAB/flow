@@ -1,7 +1,7 @@
 /* Cache contains only the public application shell and immutable build assets. Never API, keys, or financial state. */
 const CACHE='potok-local-shell-v2';
 self.addEventListener('install',event=>event.waitUntil((async()=>{
- const response=await fetch('/offline-assets.json',{cache:'no-store'});
+ const response=await fetch('/_next/static/offline-assets.json',{cache:'no-store'});
  if(!response.ok)throw new Error('Offline assets not built');
  const assets=await response.json(),cache=await caches.open(CACHE);
  await cache.addAll(['/', '/icon-192.png','/icon-512.png','/manifest.webmanifest',...assets.filter(p=>typeof p==='string'&&p.startsWith('/_next/'))]);

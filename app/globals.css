@@ -1,6 +1,6 @@
 @import 'tailwindcss';
 @import 'tw-animate-css';
-@import 'shadcn/tailwind.css';
+@import './ui-variants.css';
 @custom-variant dark (&:is(.dark *));
 @theme inline {
   --color-background: var(--background);
@@ -1375,74 +1375,6 @@ p {
   line-height: 1.7;
   margin: var(--space-4) 0;
 }
-.gmail-consent p {
-  font-size: 0.875rem;
-}
-.gmail-review-section {
-  margin: var(--space-6) 0;
-}
-.gmail-review-section > .import-hint {
-  font-size: 0.875rem;
-  margin: 14px 0 var(--space-6);
-}
-.gmail-candidate {
-  gap: var(--space-4);
-}
-.gmail-candidate > button,
-.gmail-candidate > .form-field {
-  width: 100%;
-}
-.receipt-list {
-  width: 100%;
-  max-height: 340px;
-  overflow: auto;
-  display: grid;
-  gap: 14px;
-}
-.receipt-list > div {
-  display: grid;
-  gap: 5px;
-  padding-bottom: 14px;
-  border-bottom: 1px solid var(--border);
-  font-size: 0.875rem;
-}
-.receipt-list strong {
-  font-size: 0.9375rem;
-}
-.receipt-list small {
-  word-break: break-word;
-}
-.receipt-reasons {
-  padding-left: 20px;
-  font-size: 0.875rem;
-  line-height: 1.8;
-}
-.gmail-draft {
-  display: grid;
-  gap: var(--space-4);
-}
-.gmail-alert {
-  display: flex;
-  justify-content: space-between;
-  gap: var(--space-4);
-  align-items: center;
-}
-.gmail-alert p {
-  font-size: 0.875rem;
-}
-.gmail-alert small {
-  font-size: 0.75rem;
-}
-.login-card h1 {
-  font-size: 2rem;
-}
-.google-button > span {
-  font-size: 1.375rem;
-  background: var(--card);
-  color: var(--text-secondary);
-  border-radius: var(--r-pill);
-  padding: 0 5px;
-}
 .legal-copy h1 {
   font-size: 1.875rem;
 }
@@ -2164,14 +2096,6 @@ input[type='radio'] {
   align-items: center;
   gap: var(--space-3);
 }
-.gmail-consent {
-  display: flex;
-  align-items: flex-start;
-  gap: 12px;
-  padding: var(--space-4);
-  border-radius: var(--r-card);
-  background: var(--surface-raised);
-}
 .onboarding-stage {
   padding: var(--space-10);
   border-radius: var(--r-card);
@@ -2205,28 +2129,6 @@ input[type='radio'] {
 }
 .onboarding-stage .quiet-note {
   margin-bottom: var(--space-6);
-}
-.login-card {
-  max-width: 560px;
-  margin: var(--space-12) auto;
-  gap: var(--space-6);
-  background: var(--onboarding-gradient);
-  padding: var(--space-10);
-  min-height: 540px;
-  justify-content: center;
-}
-.login-card p,
-.login-card .text-link {
-  color: var(--foreground);
-}
-.login-card .gmail-consent {
-  background: var(--glass);
-}
-.login-card .primary-button {
-  width: 100%;
-}
-.login-card .gmail-consent svg {
-  color: var(--foreground);
 }
 .dropzone {
   display: flex;
@@ -2337,8 +2239,7 @@ input[type='radio'] {
   color: var(--foreground);
   overflow-wrap: anywhere;
 }
-.onboarding-stage .source-card,
-.login-card .gmail-consent {
+.onboarding-stage .source-card {
   background: var(--onboarding-surface);
 }
 .onboarding-stage > .quiet-note p,
@@ -2869,16 +2770,6 @@ input[type='radio'] {
   .source-card {
     padding: var(--space-6);
   }
-  .gmail-alert {
-    align-items: flex-start;
-    flex-direction: column;
-  }
-  .login-card {
-    margin: var(--space-6) 0;
-  }
-  .gmail-review-section .candidate-grid {
-    grid-template-columns: 1fr;
-  }
 }
 @media (max-width: 1150px) {
   .main-content {
@@ -3163,14 +3054,6 @@ input[type='radio'] {
   .onboarding-stage .source-card {
     padding: var(--space-6);
   }
-  .login-card {
-    margin: 0;
-    padding: var(--space-8);
-    min-height: 580px;
-  }
-  .login-card h1 {
-    font-size: 2rem;
-  }
   [data-slot='dialog-content'],
   [data-slot='alert-dialog-content'] {
     width: calc(100% - 24px);
@@ -3210,9 +3093,6 @@ input[type='radio'] {
   .candidate-actions .primary-button,
   .candidate-actions .secondary-button {
     font-size: 0.875rem;
-  }
-  .gmail-alert {
-    gap: var(--space-3);
   }
 }
 @media (max-width: 360px) {
