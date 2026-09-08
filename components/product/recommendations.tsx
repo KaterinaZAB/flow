@@ -1,6 +1,184 @@
 'use client';
-import {useState} from 'react';import {TrendingUp,Layers3,CalendarDays,ArrowUpRight,Sparkles,CheckCircle2,Info} from 'lucide-react';import {recommendations,potentialSavingsPerMonth} from '@/lib/domain/recommendations';import type {RecurringExpense,Transaction,Recommendation} from '@/lib/domain/types';import {money} from '@/lib/domain/money';import {SelectField} from './select-field';
-export function RecommendationCard({item}:{item:Recommendation}){const Icon=item.kind==='overlap'?Layers3:item.kind==='annual'?CalendarDays:TrendingUp;return <section className={'panel recommendation-card '+item.severity}><span className="recommendation-icon"><Icon size={21}/></span><div><div className="recommendation-kind">{item.kind==='increase'?'Изменение стоимости':item.kind==='overlap'?'Похожие сервисы':item.kind==='annual'?'Годовой эффект':'Отклонение платежа'}</div><h3>{item.title}</h3><p>{item.explanation}</p>{item.estimatedSaving>0&&<span className="saving-tag">Возможный эффект: до {money(item.estimatedSaving,item.currency)} / мес.</span>}<a href={'/expenses/'+item.relatedExpenseIds[0]} className="text-link">{item.action}<ArrowUpRight size={14}/></a>{item.kind==='overlap'&&<div className="related-links">{item.relatedExpenseIds.slice(1).map((id,i)=><a href={'/expenses/'+id} key={id}>Сервис {i+2} ↗</a>)}</div>}</div></section>}
-export function SavingsBanner({items,currency}:{items:Recommendation[];currency:string}){const relevant=items.filter(r=>r.currency===currency);const saving=potentialSavingsPerMonth(items,currency);if(!relevant.length)return null;return <section className="savings-banner"><span className="savings-icon"><Sparkles size={23}/></span><div><span className="eyebrow">ВОЗМОЖНАЯ ЭКОНОМИЯ</span><h3>{saving>0?'Несколько расходов стоит пересмотреть':'Посмотрите на расходы с другой стороны'}</h3><p>{saving>0?'Без отказа от всего. Оставьте то, что приносит пользу.':'Мы подготовили наблюдения на основе ваших платежей.'}</p></div><div className="savings-number">{saving>0&&<strong>до {money(saving,currency)}<small>/ месяц</small></strong>}<a href="/recommendations">Посмотреть рекомендации<ArrowRightIcon/></a></div></section>}
-function ArrowRightIcon(){return <ArrowUpRight size={14}/>}
-export function RecommendationsPage({expenses,transactions}:{expenses:RecurringExpense[];transactions:Transaction[]}){const items=recommendations(expenses,transactions);const options=[...new Set(expenses.map(e=>e.currency))];const [currency,setCurrency]=useState(options.includes('RUB')?'RUB':options[0]??'RUB');const relevant=items.filter(r=>r.currency===currency);const saving=potentialSavingsPerMonth(items,currency);return <><div className="page-heading"><div><div className="eyebrow">ПОЛЬЗА, КОТОРУЮ МОЖНО ПОСЧИТАТЬ</div><h1>Рекомендации</h1><p>Поводы пересмотреть расходы — решение всегда за вами.</p></div>{options.length>1&&<SelectField label="Валюта рекомендаций" value={currency} onChange={setCurrency} options={options.map(v=>({value:v,label:v}))}/>}</div><section className="savings-summary panel"><div><span className="pill"><Sparkles size={14}/> Возможная экономия</span><h2>{saving>0?'до '+money(saving,currency):'Нет количественной оценки'}{saving>0&&<span>/ месяц</span>}</h2><p>Сценарная оценка по вашей истории. Не обещание снизить платёж.</p></div><div className="savings-summary-note"><Info size={18}/><p>Мы не знаем, как часто вы пользуетесь сервисами. Сравните расходы с пользой и проверьте доступные действия у поставщика.</p></div></section>{relevant.length?<div className="recommendation-grid">{relevant.map(r=><RecommendationCard key={r.id} item={r}/>)}</div>:<div className="panel empty-state"><CheckCircle2 size={40}/><h2>Пока нет поводов пересматривать расходы</h2><p>Добавьте больше истории. Мы проверим изменения стоимости и похожие сервисы.</p><a href="/import" className="primary-button">Загрузить выписку</a></div>}</>}
+import { useState } from 'react';
+import {
+  TrendingUp,
+  Layers3,
+  CalendarDays,
+  ArrowUpRight,
+  Sparkles,
+  CheckCircle2,
+  Info,
+} from 'lucide-react';
+import { potentialSavingsPerMonth } from '@/lib/domain/recommendations';
+import type { RecurringExpense, Recommendation } from '@/lib/domain/types';
+import { money } from '@/lib/domain/money';
+import { SelectField } from './select-field';
+export function RecommendationCard({ item }: { item: Recommendation }) {
+  const Icon =
+    item.kind === 'overlap'
+      ? Layers3
+      : item.kind === 'annual'
+        ? CalendarDays
+        : TrendingUp;
+  return (
+    <section className={'panel recommendation-card ' + item.severity}>
+      <span className="recommendation-icon">
+        <Icon size={21} />
+      </span>
+      <div>
+        <div className="recommendation-kind">
+          {item.kind === 'increase'
+            ? 'Изменение стоимости'
+            : item.kind === 'overlap'
+              ? 'Похожие сервисы'
+              : item.kind === 'annual'
+                ? 'Годовой эффект'
+                : 'Отклонение платежа'}
+        </div>
+        <h3>{item.title}</h3>
+        <p>{item.explanation}</p>
+        {item.estimatedSaving > 0 && (
+          <span className="saving-tag">
+            Возможный эффект: до {money(item.estimatedSaving, item.currency)} /
+            мес.
+          </span>
+        )}
+        <a
+          href={'/expenses/' + item.relatedExpenseIds[0]}
+          className="text-link"
+        >
+          {item.action}
+          <ArrowUpRight size={14} />
+        </a>
+        {item.kind === 'overlap' && (
+          <div className="related-links">
+            {item.relatedExpenseIds.slice(1).map((id, i) => (
+              <a href={'/expenses/' + id} key={id}>
+                Сервис {i + 2} ↗
+              </a>
+            ))}
+          </div>
+        )}
+      </div>
+    </section>
+  );
+}
+export function SavingsBanner({
+  items,
+  currency,
+}: {
+  items: Recommendation[];
+  currency: string;
+}) {
+  const relevant = items.filter((r) => r.currency === currency);
+  const saving = potentialSavingsPerMonth(items, currency);
+  if (!relevant.length) return null;
+  return (
+    <section className="savings-banner">
+      <span className="savings-icon">
+        <Sparkles size={23} />
+      </span>
+      <div>
+        <span className="eyebrow">ВОЗМОЖНАЯ ЭКОНОМИЯ</span>
+        <h3>
+          {saving > 0
+            ? 'Несколько расходов стоит пересмотреть'
+            : 'Посмотрите на расходы с другой стороны'}
+        </h3>
+        <p>
+          {saving > 0
+            ? 'Без отказа от всего. Оставьте то, что приносит пользу.'
+            : 'Мы подготовили наблюдения на основе ваших платежей.'}
+        </p>
+      </div>
+      <div className="savings-number">
+        {saving > 0 && (
+          <strong>
+            до {money(saving, currency)}
+            <small>/ месяц</small>
+          </strong>
+        )}
+        <a href="/recommendations">
+          Посмотреть рекомендации
+          <ArrowRightIcon />
+        </a>
+      </div>
+    </section>
+  );
+}
+function ArrowRightIcon() {
+  return <ArrowUpRight size={14} />;
+}
+export function RecommendationsPage({
+  expenses,
+  items,
+}: {
+  expenses: RecurringExpense[];
+  items: Recommendation[];
+}) {
+  const options = [...new Set(expenses.map((e) => e.currency))];
+  const [currency, setCurrency] = useState(
+    options.includes('RUB') ? 'RUB' : (options[0] ?? 'RUB'),
+  );
+  const relevant = items.filter((r) => r.currency === currency);
+  const saving = potentialSavingsPerMonth(items, currency);
+  return (
+    <>
+      <div className="page-heading">
+        <div>
+          <div className="eyebrow">ПОЛЬЗА, КОТОРУЮ МОЖНО ПОСЧИТАТЬ</div>
+          <h1>Рекомендации</h1>
+          <p>Поводы пересмотреть расходы — решение всегда за вами.</p>
+        </div>
+        {options.length > 1 && (
+          <SelectField
+            label="Валюта рекомендаций"
+            value={currency}
+            onChange={setCurrency}
+            options={options.map((v) => ({ value: v, label: v }))}
+          />
+        )}
+      </div>
+      <section className="savings-summary panel">
+        <div>
+          <span className="pill">
+            <Sparkles size={14} /> Возможная экономия
+          </span>
+          <h2>
+            {saving > 0
+              ? 'до ' + money(saving, currency)
+              : 'Нет количественной оценки'}
+            {saving > 0 && <span>/ месяц</span>}
+          </h2>
+          <p>Сценарная оценка по вашей истории. Не обещание снизить платёж.</p>
+        </div>
+        <div className="savings-summary-note">
+          <Info size={18} />
+          <p>
+            Мы не знаем, как часто вы пользуетесь сервисами. Сравните расходы с
+            пользой и проверьте доступные действия у поставщика.
+          </p>
+        </div>
+      </section>
+      {relevant.length ? (
+        <div className="recommendation-grid">
+          {relevant.map((r) => (
+            <RecommendationCard key={r.id} item={r} />
+          ))}
+        </div>
+      ) : (
+        <div className="panel empty-state">
+          <CheckCircle2 size={40} />
+          <h2>Пока нет поводов пересматривать расходы</h2>
+          <p>
+            Добавьте больше истории. Мы проверим изменения стоимости и похожие
+            сервисы.
+          </p>
+          <a href="/import" className="primary-button">
+            Загрузить выписку
+          </a>
+        </div>
+      )}
+    </>
+  );
+}

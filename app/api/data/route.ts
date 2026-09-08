@@ -1,2 +1,0 @@
-import {authorize,json,apiError,body,ApiError} from '@/lib/server/auth';import {db} from '@/lib/server/db';import {deleteImportedData} from '@/lib/server/data';
-export async function DELETE(req:Request){try{const u=await authorize(req);const data=await body(req);if(data?.confirm!=='delete-imported')throw new ApiError(400,'Подтвердите удаление импортированных данных.');await deleteImportedData(db(),u.userId);return json({deleted:true})}catch(e){return apiError(e)}}

@@ -1,42 +1,53 @@
-# Поток
+# Potok
 
-MVP PWA для регулярных расходов. Основной сценарий: вход → PDF/CSV/XLSX → проверка операций PDF → найденные паттерны → подтверждение → обзор.
+PWA for subscriptions and recurring expenses. Existing React/Vinext UI, Node SSR and REST backend, PostgreSQL, same-origin Caddy reverse proxy with automatic HTTPS.
 
-## Запуск
+## Start here
 
-Требуется Node.js 24+ и npm.
+- [Deployment, environment, Google Console, backup and restore](DEPLOYMENT.md)
+- [Initial feature/mock audit](AUDIT.md)
+- [Security boundaries and pending verification](SECURITY.md)
+- [Architecture](ARCHITECTURE.md)
+
+## Local development
+
+Node 22.13+ and Docker Compose v2:
 
 ```sh
+cp .env.example .env
+# Set database password and matching DATABASE_URL.
 npm ci
-npm run db:generate
+npm install --prefix backend
+docker compose -f docker-compose.dev.yml up -d --wait
+npm run db:migrate
+npm run db:seed
 npm run dev
 ```
 
-На Windows автоматически используется локальная SQLite в `.local/potok.sqlite`, на других системах — локальная D1 через Cloudflare. Миграции находятся в `drizzle/`. Вход в локальном режиме предоставляется Sites и использует тестовый аккаунт только на localhost. В опубликованной версии применяется настоящий вход через ChatGPT.
+Guest mode works without Google credentials. Personal data requires PostgreSQL and configured Google OAuth. Google login and Gmail readonly consent are separate. No GPT/OpenAI identity provider and no active LLM provider exist.
+
+## Production
+
+```sh
+cp .env.example .env
+# Set APP_DOMAIN, POSTGRES_PASSWORD, Google credentials and encryption key.
+docker compose build
+docker compose up -d --wait
+```
+
+Caddy serves the configured domain over HTTPS and proxies to Node. The frontend uses server rendering, so it cannot be replaced by an nginx static export without changing the current architecture. Migrations and reference-catalog seed run before the backend starts. No personal fixtures are seeded. A named PostgreSQL volume persists data.
+
+## Checks
 
 ```sh
 npm run typecheck
+npm run lint
 npm test
 npm run build
 ```
 
-HTTP-проверки при запущенном dev-сервере: `node scripts/smoke-crud.mjs`, `node scripts/smoke-flow.mjs`, `node --experimental-strip-types scripts/smoke-pdf.ts`. Они создают только синтетические данные в локальном тестовом аккаунте.
+Real database/API verification: `RUN_POSTGRES_E2E=yes node --env-file=.env scripts/test-postgres.mjs` against an isolated test database and running configured test app. Live Google login and Gmail consent require external credentials and test-user authorization; the test runner seeds only its own test sessions.
 
-## Импорт
+## Important status
 
-- PDF: текстовый слой, до 5 МБ, 30 страниц, 1 000 операций. Перед сохранением доступны выбор и исправление строк. Сканы и защищённые паролем документы не поддерживаются. Разбор общего табличного формата; конкретные банковские варианты требуют проверки на обезличенном образце.
-- CSV/XLSX: до 2 МБ и 10 000 строк. Автоматические заголовки на русском/английском, сопоставление столбцов при необходимости, выбор знака расхода. Поддерживаются UTF-8 и Windows-1251, разделители `;`, `,`, табуляция.
-- Вымышленная CSV-выписка доступна из интерфейса; её суммы не отражают тарифы сервисов.
-- Общий лимит: 30 000 операций в аккаунте. Исходный файл на сервере не хранится.
-
-## Расчёты
-
-Главная сущность — RecurringExpense. Суммы хранятся в целых копейках/центах. Валюты не складываются и не конвертируются автоматически. Детектор детерминированный, учитывает календарь, алиасы, разброс сумм и дат. Оценка уверенности эвристическая. Рекомендации основаны на правилах, экономия — сценарная оценка. Отмена требует действия у поставщика и отдельной отметки в Потоке.
-
-## Проверено
-
-28 бизнес-тестов, TypeScript и production build. Сквозные HTTP-проверки входа, CRUD, CSV/PDF-импорта, подтверждения, дедупликации и всех маршрутов. npm audit для production-зависимостей: 0 известных уязвимостей на момент сборки. В development-инструментах остаются предупреждения npm audit; они не устранялись принудительными несовместимыми обновлениями.
-
-Визуальная проверка и клики в браузере не выполнялись. WebMCP предоставлен с feature detection, но живой контракт браузера не проверен. Отдельный security-аудит и проверка конкретной банковской выписки не проводились.
-
-Подробности: ARCHITECTURE.md.
+The previous app already had real Google/Gmail/import/detection code backed by D1/SQLite. It has been adapted for Node/PostgreSQL. Guest data remains deliberately synthetic and separate. The Docker/PostgreSQL runtime has not yet been executed in this restricted environment: npm registry and Docker config access were denied. Follow the verification steps before treating this as a validated production release. Existing D1/SQLite data is not automatically migrated.

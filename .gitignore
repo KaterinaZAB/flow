@@ -1,5 +1,6 @@
 # dependencies
 /node_modules
+/backend/node_modules
 /.pnp
 .pnp.*
 .yarn/*
@@ -39,3 +40,5 @@ next-env.d.ts
 
 /.local/
 *.tsbuildinfo
+
+!.env.example

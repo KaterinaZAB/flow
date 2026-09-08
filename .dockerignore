@@ -1,0 +1,14 @@
+node_modules
+backend/node_modules
+dist
+.git
+.local
+.wrangler
+.env
+.env.*
+!.env.example
+work
+.codex
+.agents
+*.zip
+*.log

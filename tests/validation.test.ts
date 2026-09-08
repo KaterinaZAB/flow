@@ -1,4 +1,26 @@
-import {test} from 'node:test';import assert from 'node:assert/strict';import {validateExpense,validDate} from '../lib/domain/validation.ts';
-const input={name:'Интернет',type:'internet',amount:'790,01',currency:'RUB',billingPeriod:'monthly',status:'active',nextPaymentAt:'2026-09-08'};
-test('validates expense data on the server boundary',()=>{assert.equal(validateExpense(input).amountMinor,79001);assert.throws(()=>validateExpense({...input,amount:'-1'}));assert.throws(()=>validateExpense({...input,type:'bank'}));assert.throws(()=>validateExpense({...input,billingPeriod:'custom',customDays:0}));assert.throws(()=>validateExpense({...input,currency:'JPY'}))});
-test('rejects impossible dates rather than rolling them forward',()=>{assert.equal(validDate('2026-02-30'),false);assert.equal(validDate('2024-02-29'),true);assert.equal(validDate('2025-02-29'),false)});
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import { validateExpense, validDate } from '../lib/domain/validation.ts';
+const input = {
+  name: 'Интернет',
+  type: 'internet',
+  amount: '790,01',
+  currency: 'RUB',
+  billingPeriod: 'monthly',
+  status: 'active',
+  nextPaymentAt: '2026-09-08',
+};
+test('validates expense data on the server boundary', () => {
+  assert.equal(validateExpense(input).amountMinor, 79001);
+  assert.throws(() => validateExpense({ ...input, amount: '-1' }));
+  assert.throws(() => validateExpense({ ...input, type: 'bank' }));
+  assert.throws(() =>
+    validateExpense({ ...input, billingPeriod: 'custom', customDays: 0 }),
+  );
+  assert.throws(() => validateExpense({ ...input, currency: 'JPY' }));
+});
+test('rejects impossible dates rather than rolling them forward', () => {
+  assert.equal(validDate('2026-02-30'), false);
+  assert.equal(validDate('2024-02-29'), true);
+  assert.equal(validDate('2025-02-29'), false);
+});

@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
-const base='http://localhost:3000';const headers={Cookie:'__sites_local_auth=1',Origin:base};const suffix=Date.now();
+const base='http://localhost:3000';const headers={Cookie:process.env.POTOK_TEST_COOKIE ?? '',Origin:base};const suffix=Date.now();
 const csv='date;merchant;amount;currency\n2026-06-21;QA regular '+suffix+';-699;RUB\n2026-07-21;QA regular '+suffix+';-699;RUB\n2026-08-22;QA regular '+suffix+';-999;RUB';
 const form=new FormData();form.set('file',new File([csv],'qa.csv'));form.set('amountMode','negative');form.set('currency','RUB');
-let r=await fetch(base+'/api/imports',{method:'POST',headers,body:form});let data=await r.json();assert.equal(r.status,201,JSON.stringify(data));assert.equal(data.transactionCount,3);assert.ok(data.candidateCount>=1);
+let r=await fetch(base+'/api/imports',{method:'POST',headers,body:form});const data=await r.json();assert.equal(r.status,201,JSON.stringify(data));assert.equal(data.transactionCount,3);assert.ok(data.candidateCount>=1);
 r=await fetch(base+'/api/candidates',{headers});const candidates=await r.json();const candidate=candidates.find(c=>c.expense.name.includes(String(suffix)));assert.ok(candidate);
 const body=JSON.stringify({ids:[candidate.id],decision:'confirmed'});r=await fetch(base+'/api/candidates',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body});assert.equal(r.status,200,await r.text());
 r=await fetch(base+'/api/candidates',{method:'POST',headers:{...headers,'Content-Type':'application/json'},body});assert.equal(r.status,200);

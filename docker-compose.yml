@@ -1,0 +1,51 @@
+services:
+  frontend:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports: ["80:80", "443:443"]
+    environment:
+      APP_DOMAIN: ${APP_DOMAIN:?Set APP_DOMAIN}
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      backend:
+        condition: service_healthy
+  backend:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      NODE_ENV: production
+      APP_ORIGIN: https://${APP_DOMAIN:?Set APP_DOMAIN}
+      DATABASE_URL: postgresql://potok:${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}@postgres:5432/potok
+    expose: ["3000"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://127.0.0.1:3000/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 20s
+      timeout: 8s
+      start_period: 60s
+      retries: 5
+    stop_grace_period: 30s
+  postgres:
+    image: postgres:17-bookworm
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: potok
+      POSTGRES_USER: potok
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
+    volumes: ["vault_postgres_data:/var/lib/postgresql/data"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U potok -d potok"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+volumes:
+  vault_postgres_data:
+  caddy_data:
+  caddy_config:
+

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 const base='http://localhost:3000';
 let r=await fetch(base+'/api/expenses');assert.equal(r.status,401);
-r=await fetch(base+'/signin-with-chatgpt?return_to=/',{redirect:'manual'});assert.equal(r.status,302);const cookie=r.headers.get('set-cookie').split(';')[0];
+const cookie=process.env.POTOK_TEST_COOKIE;assert.ok(cookie,'Set POTOK_TEST_COOKIE to an authenticated test Google session');
 const headers={'Cookie':cookie,'Origin':base,'Content-Type':'application/json'};
 r=await fetch(base+'/api/expenses',{method:'POST',headers,body:JSON.stringify({name:'QA Интернет',type:'internet',amount:'790.01',currency:'RUB',billingPeriod:'monthly',status:'active',nextPaymentAt:'2026-09-08'})});const expense=await r.json();assert.equal(r.status,201,JSON.stringify(expense));assert.equal(expense.amountMinor,79001);
 r=await fetch(base+'/api/expenses/'+expense.id,{method:'PATCH',headers,body:JSON.stringify({...expense,amount:'899.99',status:'paused'})});assert.equal(r.status,200);assert.equal((await r.json()).amountMinor,89999);

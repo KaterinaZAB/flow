@@ -29,7 +29,9 @@
     "build/**",
     "dist/**",
     "coverage/**",
-    "next-env.d.ts"
+    "next-env.d.ts",
+    "work/**",
+    "components/ui/**"
   ],
   "rules": {
     "no-array-constructor": "error",
@@ -51,6 +53,42 @@
     "typescript/no-namespace": "error",
     "typescript/no-require-imports": "error",
     "typescript/no-unnecessary-type-constraint": "error",
-    "typescript/no-unsafe-function-type": "error"
-  }
+    "typescript/no-unsafe-function-type": "error",
+    "nextjs/no-html-link-for-pages": "off",
+    "jsx-a11y/prefer-tag-over-role": "off",
+    "jsx-a11y/label-has-associated-control": [
+      "error",
+      {
+        "controlComponents": ["Input", "SelectField", "Checkbox"],
+        "depth": 4
+      }
+    ]
+  },
+  "overrides": [
+    {
+      "files": ["tests/**/*.ts"],
+      "rules": {
+        "typescript/no-floating-promises": "off"
+      }
+    },
+    {
+      "files": ["scripts/*.cjs"],
+      "rules": {
+        "typescript/no-require-imports": "off"
+      }
+    },
+    {
+      "files": ["scripts/smoke-*.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off"
+      }
+    },
+    {
+      "files": ["lib/import/xlsx.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "typescript/no-deprecated": "off"
+      }
+    }
+  ]
 }

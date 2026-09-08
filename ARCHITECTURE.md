@@ -1,36 +1,34 @@
-# Поток · MVP
-## Product flow
-ChatGPT sign-in provisions a local user on first authorized request. Import CSV/XLSX → server validation and parsing → deterministic detection → editable candidates → explicit confirmation → dashboard. Manual CRUD is a fallback.
-## Modules and invariants
-- lib/domain: pure types, normalization, calendar prediction, money, analytics and recommendations.
-- lib/server: authorization, prepared D1 queries and atomic batches, import orchestration.
-- app/api: authenticated JSON endpoints; same-origin mutations.
-- components/product and app: responsive screens.
-- db/schema.ts and generated drizzle/: schema and migrations, never runtime DDL.
-- Money is integer minor units; division uses BigInt rounding. Supported currencies use 2 minor digits. Never sum currencies together.
-- Every database operation is scoped by authenticated user ID. Source statement bytes exist only during parsing. No transaction bodies in logs; authenticated responses are not cached.
-- Candidate confirmation is separate from detection. Cancelled/paused expenses are excluded from forecasts and recommendations.
-- Predictions are calendar based. Unknown merchants are supported; confidence is a heuristic, not a calibrated probability.
-## Routes
-/ overview/onboarding; /import; /detected; /expenses; /expenses/[id]; /recommendations; /settings.
-## Hosting
-Vinext/React, Cloudflare Workers and D1, Sites dispatch-owned ChatGPT authentication. Private by default. Password registration and banking integrations are outside this deployment model.
-## Delivery sequence
-1. Model, schema, routing, UI shell.
-2. Authentication and CRUD.
-3. CSV/XLSX server import.
-4. Recurring detection and forecasts.
-5. Candidate confirmation and transaction linking.
-6. Dashboard analytics.
-7. Rule-based recommendations.
-8. Cancellation strategies and user confirmation.
-9. PWA, responsive completion, security and integration tests.
+# Architecture
 
-## PDF support
-PDF is the primary upload option (5 MB, 30 pages, 1,000 reviewed rows); CSV/XLSX remain available (2 MB, 10,000 rows). Server-side unpdf/PDF.js reads text and coordinates. The user reviews extracted dates, descriptions, amounts and direction before any PDF operation is persisted. Unknown direction is unselected and requires clarification. Only confirmed expense-direction rows enter the common import validation and detection pipeline. Scans, password-protected PDFs, and layouts without recognizable rows return explicit errors; OCR is not included. No universal bank-layout compatibility is claimed without a real statement fixture.
+## Runtime
 
-## Local development
-Node 24+ recommended. Windows development uses the same SQL through node:sqlite at .local/potok.sqlite because the sandbox's native Workers runtime cannot start. This adapter is a Vite serve-only alias and is excluded from the hosted Worker. Generated Drizzle migrations are applied to local SQLite on startup. Authentication uses the starter's localhost-only test sign-in, never a production bypass.
+Caddy (frontend HTTPS/reverse proxy) -> Node/Vinext (React Server Components + REST) -> PostgreSQL.
 
-## Validation
-Pure business tests cover money, date drift, month end, four periods, variability, refunds, duplicates, PDF text/table extraction, XLSX limits, recommendations, cancellation and user-scoped deletion. HTTP smoke scripts cover authentication, CRUD, import, confirmation idempotency, PDF review and routes. Browser UI interaction/visual testing has not been performed. WebMCP read tool is feature-detected; a supported live WebMCP validation context was unavailable.
+The existing App Router and components remain intact. SSR reads the same server services as REST routes without a redundant loopback HTTP request. Client mutations use `lib/api/client.ts`; authenticated REST never returns guest fixtures. `lib/server/product-data.ts` is the centralized server data-provider boundary. Guest data lives only in `lib/demo` and tests/examples.
+
+## Modules
+
+- Auth: `lib/google` and `app/auth`; verified Google subject, server sessions, separate Gmail consent.
+- Persistence: `lib/server/postgres.ts`; pool and parameterized repository boundary, atomic batches. Drizzle schema in `db/schema.ts`; generated migrations in `migrations/postgres`.
+- Users: `/api/me` profile and preferences; `/api/account` deletion.
+- Expenses/transactions: `lib/server/expenses.ts`; owner-scoped CRUD and provider enrichment.
+- Imports: `lib/import` parsers, MIME/body limits; `lib/server/imports.ts` persistence.
+- Detection/confirmation: `lib/domain/detection.ts` and `lib/server/candidates.ts`.
+- Analytics: server `projections.ts`; `/api/dashboard`; client renders prepared results.
+- Recommendations: server rule engine, `/api/recommendations` and server-rendered page.
+- Gmail: candidate search, MIME preprocessing, rules/schema validation, reconciliation and incremental sync in `lib/gmail` + `lib/server/gmail.ts`.
+- Catalog: versioned matching metadata in `lib/domain/catalog.ts`, seeded reference services and aliases in PostgreSQL.
+
+## Public and personal data
+
+Public routes display demo expenses and actual demo analytics. A null user is normal. Protected mutations validate sessions and Origin server-side. Guest upload parses real supplied bytes and returns preview candidates without persisting. Saving after login currently requires re-upload; personal data is not silently copied from the demo dataset.
+
+## Database
+
+users, google_identities, auth_sessions, oauth_states, gmail_connections, recurring_expenses, transactions, transaction_imports, detection_candidates, gmail_receipts, expense_evidence, gmail_events, provider_enrichments, integration_locks, integration_audit, services, service_aliases. Financial amounts and epoch times use bigint where appropriate; adapter rejects unsafe numeric conversion. Existing ISO date strings preserve current domain contracts. No float monetary storage.
+
+Legacy SQLite migration files remain for existing regression tests and data migration reference, but production runs PostgreSQL migrations only. No automatic D1-to-PostgreSQL data transfer is performed.
+
+## Operations
+
+Single backend process, bounded synchronous imports/Gmail batches, process-local rate limits, hashed cookie sessions, encrypted Gmail credentials. No Redis, Kubernetes or message queue. See DEPLOYMENT.md and SECURITY.md for operational setup and unverified external dependencies.

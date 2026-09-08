@@ -1,3 +1,2 @@
-import {requireChatGPTUser} from '../chatgpt-auth';import {Shell} from '@/components/product/shell';import {CandidateList} from '@/components/product/candidate-list';import {listCandidates} from '@/lib/server/candidates';import {listTransactions} from '@/lib/server/expenses';
-export const dynamic='force-dynamic';
-export default async function Detected(){const u=await requireChatGPTUser('/detected');const [items,transactions]=await Promise.all([listCandidates(u.userId),listTransactions(u.userId)]);const ids=new Set(items.flatMap(c=>c.transactionIds));return <Shell active="import" userName={u.displayName}><CandidateList initial={items} transactions={transactions.filter(t=>ids.has(t.id))}/></Shell>}
+import {LocalApp} from '@/components/product/local-app';
+export default function Page(){return <LocalApp/>;}

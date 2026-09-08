@@ -1,2 +1,2 @@
-import {requireChatGPTUser} from '../chatgpt-auth';import {Shell} from '@/components/product/shell';import {RecommendationsPage} from '@/components/product/recommendations';import {listExpenses,listTransactions} from '@/lib/server/expenses';
-export const dynamic='force-dynamic';export default async function Page(){const u=await requireChatGPTUser('/recommendations');const [expenses,transactions]=await Promise.all([listExpenses(u.userId),listTransactions(u.userId)]);return <Shell active="recommendations" userName={u.displayName}><RecommendationsPage expenses={expenses} transactions={transactions}/></Shell>}
+import {LocalApp} from '@/components/product/local-app';
+export default function Page(){return <LocalApp/>;}
