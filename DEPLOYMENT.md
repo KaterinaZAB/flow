@@ -66,6 +66,28 @@ Backend entrypoint выполняет checksum migrations с advisory lock, за
 
 ## Backup / restore PostgreSQL
 
+На настроенном VPS (`cd /opt/flow`) предпочтительно:
+
+    sh scripts/backup.sh
+
+Скрипт создаёт файл `/var/backups/flow/flow-<UTC timestamp>-<PID>.dump` с правами 600 и публикует его только после успешного pg_dump. Путь можно изменить через FLOW_BACKUP_DIR. Это ручной backup; внешнее копирование и расписание нужно настроить отдельно.
+
+Проверка структуры dump без восстановления:
+
+    docker compose exec -T postgres pg_restore --list < /var/backups/flow/ИМЯ.dump
+
+Восстановление выбранной копии (замените ИМЯ.dump, сначала сохраните текущую базу):
+
+    sh scripts/backup.sh
+    docker compose stop backend
+    docker compose exec -T postgres pg_restore -U potok -d potok --clean --if-exists --exit-on-error < /var/backups/flow/ИМЯ.dump
+    docker compose up -d --wait backend
+    curl --fail https://subflex.ru/health
+
+Не выполняйте restore поверх рабочей базы без остановки backend. При ошибке восстановления сначала устраните её, затем запускайте backend.
+
+Эквивалентная ручная команда backup:
+
     docker compose exec -T postgres pg_dump -U potok -d potok -Fc > potok-vaults.dump
 
 Восстановление — на отдельную подготовленную базу, при остановленном backend:

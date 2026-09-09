@@ -19,6 +19,34 @@ PostgreSQL не нужен для локального режима. Для се
 
 Production требует HTTPS; локальный localhost работает как secure context. Service worker формируется production сборкой.
 
+## Production: subflex.ru
+
+Приложение: https://subflex.ru. VPS: `94.241.171.49`, проект: `/opt/flow`, ветка `main`.
+HTTP перенаправляется на HTTPS; сертификат автоматически обновляет Caddy. PostgreSQL и порт приложения не опубликованы наружу.
+
+```sh
+ssh root@94.241.171.49
+cd /opt/flow
+docker compose ps
+docker compose logs --tail=100 -f
+```
+
+Перезапуск приложения: `docker compose restart backend frontend`.
+Обновление после push в main:
+
+```sh
+cd /opt/flow
+sh scripts/backup.sh
+git pull --ff-only origin main
+sh scripts/deploy.sh
+curl --fail https://subflex.ru/health
+```
+
+Резервная копия: `sh scripts/backup.sh`. Файл сохраняется в `/var/backups/flow` с закрытыми правами.
+Копируйте backups на отдельный защищённый носитель; recovery key хранится отдельно у пользователя.
+Команды восстановления и первоначальной установки — в [DEPLOYMENT.md](DEPLOYMENT.md).
+Не запускайте `docker compose down -v`: это удалит persistent volumes.
+
 ## Проверки
 
     npm run typecheck
