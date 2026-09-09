@@ -140,27 +140,6 @@ p {
   padding: var(--space-4);
   border-top: 1px solid var(--border);
 }
-.sidebar-tip strong {
-  display: block;
-  font-size: 0.8125rem;
-  margin: 10px 0 6px;
-}
-.sidebar-tip p {
-  font-size: 0.75rem;
-  line-height: 1.65;
-}
-.sidebar-tip a {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  color: var(--text-secondary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  margin-top: 14px;
-}
-.tip-icon {
-  color: var(--muted-foreground);
-}
 .profile {
   display: flex;
   align-items: center;
@@ -1230,8 +1209,7 @@ p {
 .import-aside p,
 .import-aside li,
 .recommendation-card p,
-.detail-dl > div,
-.sidebar-tip strong {
+.detail-dl > div {
   font-size: 0.875rem;
 }
 .payment-name > span,
@@ -1244,8 +1222,6 @@ p {
 .panel-foot,
 .forecast-caption,
 .import-hint,
-.sidebar-tip p,
-.sidebar-tip a,
 .profile strong,
 .profile small,
 .category-legend small,
@@ -1470,14 +1446,6 @@ button:disabled {
 .nav-item:hover {
   background: var(--card);
 }
-.sidebar-tip {
-  margin: 52px 6px var(--space-4);
-  background: var(--card);
-  margin-top: var(--space-8);
-  padding: var(--space-6);
-  border-radius: var(--r-card);
-}
-.sidebar-tip a,
 .text-link,
 .related-links {
   color: var(--focus);
@@ -1791,6 +1759,116 @@ input[type='radio'] {
   height: 190px;
   overflow: visible;
   margin-top: var(--space-6);
+}
+.forecast-selection {
+  min-height: 48px;
+  margin-top: var(--space-4);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-3);
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+.forecast-selection strong {
+  color: var(--foreground);
+  font-size: 1.125rem;
+  white-space: nowrap;
+}
+.forecast-point {
+  cursor: pointer;
+  outline: none;
+}
+.forecast-point:focus-visible .forecast-dot,
+.forecast-point:hover .forecast-dot {
+  stroke: var(--foreground);
+  stroke-width: 2;
+}
+.mobile-profile {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: 0.8125rem;
+}
+.expense-delete-section {
+  margin-top: var(--space-8);
+  padding: var(--space-6) 0;
+  border-top: 1px solid var(--border);
+}
+.expense-delete-section p {
+  color: var(--text-secondary);
+  max-width: 600px;
+  margin-bottom: var(--space-4);
+  font-size: 0.875rem;
+}
+.import-steps {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-4);
+  padding: 0;
+  margin-bottom: var(--space-6);
+  list-style: none;
+}
+.import-steps li {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  font-size: 0.875rem;
+  color: var(--text-secondary);
+}
+.import-steps li > span {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface-raised);
+}
+.import-steps li[aria-current='step'] {
+  color: var(--foreground);
+  font-weight: 600;
+}
+.import-steps li[aria-current='step'] > span {
+  background: var(--primary);
+  color: white;
+}
+.import-layout.import-focused {
+  display: flex;
+  flex-direction: column;
+  max-width: 900px;
+  gap: var(--space-4);
+}
+.import-analyze.primary-button {
+  width: 100%;
+  min-height: 56px;
+  margin-top: var(--space-4);
+  justify-content: center;
+  font-size: 1rem;
+  white-space: normal;
+}
+.import-reassurance {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+}
+.import-reassurance p {
+  flex: 1;
+  min-width: 180px;
+}
+@media (max-width: 767px) {
+  .overview-add-desktop {
+    display: none;
+  }
+  .import-steps {
+    flex-direction: column;
+    gap: var(--space-2);
+  }
+  .import-reassurance .text-link {
+    width: 100%;
+  }
 }
 .chart-grid {
   stroke: var(--border);

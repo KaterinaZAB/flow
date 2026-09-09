@@ -18,7 +18,7 @@ import {
   UploadCloud,
   Sparkles,
   Settings2,
-  ArrowUpRight,
+  UserRound,
   Waves,
 } from 'lucide-react';
 const navigation = [
@@ -86,18 +86,6 @@ export function Shell({
               </SidebarMenuItem>
             ))}
           </SidebarMenu>
-          <div className="sidebar-tip">
-            <span className="tip-icon">
-              <UploadCloud size={20} />
-            </span>
-            <strong>Данные на устройстве</strong>
-            <p>
-              Выписка анализируется локально. Синхронизация — с шифрованием.
-            </p>
-            <a href="/settings/sources">
-              Источники данных <ArrowUpRight size={15} />
-            </a>
-          </div>
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenuButton
@@ -127,8 +115,16 @@ export function Shell({
             </span>
             поток
           </a>
-          <a href="/settings" aria-label="Настройки" className="avatar">
-            <Settings2 size={19} />
+          <a
+            href="/settings"
+            aria-label="Профиль и настройки"
+            className="mobile-profile"
+          >
+            <span className="avatar">
+              <UserRound size={19} />
+            </span>
+            <span>Профиль</span>
+            <Settings2 size={14} aria-hidden="true" />
           </a>
         </header>
         <main className="main-content">{children}</main>

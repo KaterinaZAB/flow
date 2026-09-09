@@ -41,11 +41,12 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
     });
   const ref = useRef<HTMLInputElement>(null);
   function choose(f: File | undefined) {
+    if (!f) return;
     setError('');
     setHeaders([]);
     setResult(null);
     setPdfPreview(null);
-    if (!f) return;
+    setFile(null);
     if (
       !/\.(pdf|csv|xlsx)$/i.test(f.name) ||
       f.size > (f.name.toLowerCase().endsWith('.pdf') ? 5 : 2) * 1024 * 1024
@@ -112,7 +113,18 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
           {error}
         </div>
       )}
-      <div className="import-layout">
+      <ol className="import-steps" aria-label="Этапы импорта">
+        <li aria-current={!file ? 'step' : undefined}>
+          <span>1</span>Выберите выписку
+        </li>
+        <li aria-current={file && !result ? 'step' : undefined}>
+          <span>2</span>Запустите анализ
+        </li>
+        <li aria-current={result ? 'step' : undefined}>
+          <span>3</span>Проверьте расходы
+        </li>
+      </ol>
+      <div className="import-layout import-focused">
         <section className="panel import-panel">
           {result ? (
             <div className="import-success">
@@ -202,12 +214,13 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                 <h2>{file ? file.name : 'Перетащите PDF-выписку сюда'}</h2>
                 <p>
                   {file
-                    ? (file.size / 1024).toFixed(0) + ' КБ · готов к анализу'
+                    ? (file.size / 1024).toFixed(0) +
+                      ' КБ · файл выбран, запустите анализ ниже'
                     : 'или выберите файл на устройстве'}
                 </p>
                 <button
                   type="button"
-                  className="secondary-button"
+                  className={file ? 'text-link' : 'primary-button'}
                   onClick={() => ref.current?.click()}
                 >
                   {file ? 'Выбрать другой файл' : 'Выбрать файл'}
@@ -221,6 +234,23 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                   onChange={(e) => choose(e.target.files?.[0])}
                 />
                 <span className="muted">PDF до 5 МБ · CSV / XLSX до 2 МБ</span>
+                {file && headers.length === 0 && (
+                  <button
+                    disabled={busy}
+                    onClick={() => void upload()}
+                    className="primary-button import-analyze"
+                  >
+                    {file.name.toLowerCase().endsWith('.pdf')
+                      ? 'Прочитать PDF и проверить операции'
+                      : 'Начать анализ выписки'}
+                    <ArrowRight size={20} />
+                  </button>
+                )}
+                {!file && (
+                  <small className="muted">
+                    Подойдёт один месяц. PDF — текстовый, без пароля.
+                  </small>
+                )}
               </div>
               <div className="import-options">
                 <div className="form-field">
@@ -237,9 +267,7 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                 </div>
               </div>
               <p className="import-hint">
-                Направление определяется автоматически: «−790» и «790» — расход,
-                «+790» — пополнение. Учитываем и отдельные столбцы направления
-                операции.
+                Расходы и пополнения определим автоматически.
               </p>
               {headers.length > 0 && (
                 <div className="mapping-fields">
@@ -278,51 +306,28 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                   {error}
                 </div>
               )}
-              <div className="import-submit">
-                <span>{'Данные сохраняются на устройстве'}</span>
-                <button
-                  disabled={!file || busy}
-                  onClick={() => upload()}
-                  className="primary-button"
-                >
-                  {file?.name.toLowerCase().endsWith('.pdf')
-                    ? 'Прочитать PDF'
-                    : 'Найти мои расходы'}
-                  <ArrowRight size={17} />
-                </button>
-              </div>
+              {headers.length > 0 && (
+                <div className="import-submit">
+                  <button
+                    disabled={!file || busy}
+                    onClick={() => upload()}
+                    className="primary-button import-analyze"
+                  >
+                    Применить столбцы и начать анализ
+                    <ArrowRight size={17} />
+                  </button>
+                </div>
+              )}
             </>
           )}
         </section>
-        <aside className="import-aside">
-          <div className="panel">
-            <ShieldCheck size={24} />
-            <h3>Ваши данные — под контролем</h3>
-            <p>
-              Исходный файл обрабатывается на устройстве и не отправляется на
-              сервер. {'Операции сохраняются в локальном хранилище.'}
-            </p>
-            <p>Удалить импортированные данные можно в настройках.</p>
-          </div>
-          <div className="panel">
-            <h3>Что поможет анализу</h3>
-            <ul>
-              <li>
-                Текстовая выписка за любой период, в том числе за один месяц
-              </li>
-              <li>Перед импортом PDF можно проверить и исправить строки</li>
-              <li>Сканы и PDF с паролем пока не поддерживаются</li>
-              <li>
-                При короткой истории известные сервисы предложим для проверки.
-                Больше операций поможет уточнить периодичность.
-              </li>
-            </ul>
-            <a href="/example-statement.csv" download className="text-link">
-              Скачать пример CSV ↗
-            </a>
-            <p className="sample-note">Пример содержит вымышленные платежи.</p>
-          </div>
-        </aside>
+        <div className="import-reassurance">
+          <ShieldCheck size={24} />
+          <p>Файл анализируется на устройстве и не отправляется на сервер.</p>
+          <a href="/example-statement.csv" download className="text-link">
+            Попробовать на примере CSV ↗
+          </a>
+        </div>
       </div>
 
       {imports.length > 0 && (

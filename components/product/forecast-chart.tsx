@@ -1,5 +1,5 @@
 'use client';
-import { useId } from 'react';
+import { useId, useState } from 'react';
 import { money } from '@/lib/domain/money';
 /** Straight segments preserve the forecast values; no invented interpolation peaks. */
 export function ForecastChart({
@@ -10,6 +10,8 @@ export function ForecastChart({
   currency: string;
 }) {
   const id = useId().replace(/:/g, '');
+  const [selectedMonth, setSelectedMonth] = useState<string | null>(null);
+  const selected = months.find((month) => month.month === selectedMonth);
   const max = Math.max(1, ...months.map((m) => m.amount));
   const points = months
     .map(
@@ -25,11 +27,24 @@ export function ForecastChart({
     .join('; ');
   return (
     <div>
+      <div className="forecast-selection" aria-live="polite">
+        {selected ? (
+          <>
+            <span>
+              {selected.label}
+              {selected.partial ? ' · до конца месяца' : ''}
+            </span>
+            <strong>{money(selected.amount, currency)}</strong>
+          </>
+        ) : (
+          <span>Нажмите на точку, чтобы увидеть сумму</span>
+        )}
+      </div>
       <svg
         className="forecast-chart"
         viewBox="0 0 400 180"
         preserveAspectRatio="none"
-        role="img"
+        role="group"
         aria-label={description}
       >
         <defs>
@@ -44,15 +59,35 @@ export function ForecastChart({
         <polygon points={`8,176 ${points} 392,176`} fill={`url(#${id})`} />
         <polyline points={points} className="chart-line" />
         {months.map((m, i) => (
-          <circle
+          <g
             key={m.month}
-            cx={8 + (i * 384) / Math.max(1, months.length - 1)}
-            cy={166 - (m.amount / max) * 148}
-            r="3"
-            fill="var(--primary)"
+            className="forecast-point"
+            role="button"
+            tabIndex={0}
+            aria-label={`${m.label}: ${money(m.amount, currency)}${m.partial ? ' до конца месяца' : ''}`}
+            aria-pressed={selectedMonth === m.month}
+            onClick={() => setSelectedMonth(m.month)}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                setSelectedMonth(m.month);
+              }
+            }}
           >
-            <title>{`${m.label}: ${money(m.amount, currency)}`}</title>
-          </circle>
+            <circle
+              cx={8 + (i * 384) / Math.max(1, months.length - 1)}
+              cy={166 - (m.amount / max) * 148}
+              r="22"
+              fill="transparent"
+            />
+            <circle
+              className="forecast-dot"
+              cx={8 + (i * 384) / Math.max(1, months.length - 1)}
+              cy={166 - (m.amount / max) * 148}
+              r={selectedMonth === m.month ? 6 : 4}
+              fill="var(--primary)"
+            />
+          </g>
         ))}
       </svg>
       <div className="chart-labels" aria-hidden="true">

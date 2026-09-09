@@ -181,7 +181,13 @@ export function LocalDetail({ id, state }: { id: string; state: Workspace }) {
           expense={expense}
           strategy={cancellationStrategy(service)}
         />
-        <DeleteAction expenseId={id} />
+        <div className="expense-delete-section">
+          <p>
+            Удаление убирает запись из списка. Чтобы сохранить её историю после
+            отмены услуги, используйте «Я отменил подписку».
+          </p>
+          <DeleteAction expenseId={id} />
+        </div>
       </div>
     </>
   );

@@ -52,11 +52,11 @@ export function LocalApp() {
   const pending = data.candidates.filter((c) => c.decision === 'pending');
   return (
     <Shell active={active}>
-      {['offline', 'error', 'conflict'].includes(status) && (
+      {['error', 'conflict'].includes(status) && (
         <p role="status" className="source-notice">
           {status === 'conflict'
             ? 'На другом устройстве есть новая версия. Выберите действие в настройках.'
-            : 'Изменения сохранены на устройстве. Синхронизация будет выполнена позже.'}{' '}
+            : 'Не удалось синхронизировать данные. Проверьте подключение в настройках.'}{' '}
           <a href="/settings/sync">Хранение и синхронизация</a>
         </p>
       )}

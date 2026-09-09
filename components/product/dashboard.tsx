@@ -50,7 +50,6 @@ export function Dashboard({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">БОЛЬШЕ ЯСНОСТИ. МЕНЬШЕ СЮРПРИЗОВ.</div>
           <h1>Ваши регулярные расходы</h1>
           <p>Всё, что предстоит оплатить — в одном месте.</p>
         </div>
@@ -71,7 +70,9 @@ export function Dashboard({
               options={options.map((v) => ({ value: v, label: v }))}
             />
           )}
-          <ExpenseForm buttonLabel="Добавить" guest={guest} />
+          <div className="overview-add-desktop">
+            <ExpenseForm buttonLabel="Добавить" guest={guest} />
+          </div>
         </div>
       </div>
       {pending > 0 && (
