@@ -168,8 +168,11 @@ export function CandidateList({
                     <div>
                       <h3>{e.name}</h3>
                       <p>
-                        {history.length === 1 ? 'Предположительно · ' : ''}
-                        {periodLabels[e.billingPeriod]}
+                        {history.length === 1 && e.billingPeriod === 'monthly'
+                          ? 'Предположительно ежемесячно'
+                          : (history.length === 1
+                              ? 'Предположительно · '
+                              : '') + periodLabels[e.billingPeriod]}
                       </p>
                     </div>
                     <span

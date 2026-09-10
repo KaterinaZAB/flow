@@ -299,6 +299,38 @@ export async function localCommand(path: string, options: RequestInit = {}) {
           }
           outcomeByKey.set(importOutcomeKey(outcome, service.id), outcome);
         }
+        for (const transaction of importedRows) {
+          const service = findService(transaction.originalMerchant);
+          if (!service || !isKnownSubscription(service)) continue;
+          const matchesTransaction = (candidate: Candidate) =>
+            candidate.expense.serviceId === service.id &&
+            candidate.expense.amountMinor === transaction.amountMinor &&
+            candidate.expense.currency === transaction.currency;
+          const hasFinalizedOutcome =
+            state.candidates.some(
+              (candidate) =>
+                candidate.decision !== 'pending' &&
+                matchesTransaction(candidate),
+            ) ||
+            state.expenses.some(
+              (expense) =>
+                expense.status === 'active' &&
+                expense.serviceId === service.id &&
+                expense.currency === transaction.currency &&
+                Math.abs(expense.amountMinor - transaction.amountMinor) <=
+                  Math.max(100, transaction.amountMinor * 0.1),
+            );
+          const hasPendingEvidence = state.candidates.some(
+            (candidate) =>
+              candidate.decision === 'pending' &&
+              matchesTransaction(candidate) &&
+              candidate.transactionIds.includes(transaction.id),
+          );
+          if (!hasFinalizedOutcome && !hasPendingEvidence)
+            throw new Error(
+              'Не удалось сохранить найденную известную подписку.',
+            );
+        }
         outcomes = [...outcomeByKey.values()];
         confirmedCandidateCount = outcomes.filter(
           (outcome) => outcome.kind === 'confirmed_expense',

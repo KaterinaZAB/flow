@@ -41,3 +41,19 @@ test('PDF review uses progressive disclosure and keeps detection primary', () =>
     /сомнительные строки[\s\S]*не будем учитывать[\s\S]*автоматически/,
   );
 });
+
+test('detected page presents a one-payment subscription candidate for review', () => {
+  const source = readFileSync('components/product/candidate-list.tsx', 'utf8');
+  assert.match(source, /Предположительно ежемесячно/);
+  assert.match(source, /Один платёж: повторяемость ещё не подтверждена/);
+
+  const importSource = readFileSync(
+    'components/product/import-form.tsx',
+    'utf8',
+  );
+  assert.match(
+    importSource,
+    /outcome\.kind === 'new_candidate'[\s\S]*window\.location\.href = '\/detected'/,
+  );
+  assert.match(importSource, /outcome\.kind === 'pending_candidate'/);
+});
