@@ -34,7 +34,7 @@ test('vault creation limiter caps requests, expires windows and bounds memory', 
 test('PDF review uses progressive disclosure and keeps detection primary', () => {
   const source = readFileSync('components/product/pdf-review.tsx', 'utf8');
   assert.match(source, /showRows &&/);
-  assert.match(source, /Найти регулярные расходы/);
+  assert.match(source, /Найти подписки/);
   assert.match(source, /Посмотреть распознанные операции/);
   assert.match(
     source,

@@ -33,6 +33,8 @@ const expense = z
     nextPaymentAtSource: z
       .enum(['manual', 'provider_email', 'transaction_prediction'])
       .optional(),
+    recurringConfidence: z.number().min(0).max(1).optional(),
+    subscriptionConfidence: z.number().min(0).max(1).optional(),
     confidence: z.number().min(0).max(1).nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
@@ -47,6 +49,12 @@ const transaction = z
       .string()
       .regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/)
       .optional(),
+    processedAt: date.optional(),
+    authorizationCode: z
+      .string()
+      .regex(/^\d{5,6}$/)
+      .optional(),
+    rawDescription: z.string().max(1000).optional(),
     parseConfidence: z.number().min(0).max(1).optional(),
     parseReviewReasons: z.array(z.string().max(80)).max(10).optional(),
     normalizedMerchant: z.string().max(240),

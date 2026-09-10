@@ -97,7 +97,10 @@ test('ambiguous PDF rows stay available but are excluded by default', () => {
     [
       'date',
       'time',
+      'processedAt',
+      'authorizationCode',
       'merchant',
+      'rawDescription',
       'bankCategory',
       'amount',
       'currency',

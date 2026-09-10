@@ -18,6 +18,9 @@ export type ImportOptions = {
     direction?: number;
     bankCategory?: number;
     time?: number;
+    processedAt?: number;
+    authorizationCode?: number;
+    rawDescription?: number;
     parseConfidence?: number;
     parseReviewReasons?: number;
   };
@@ -63,6 +66,9 @@ const aliases = {
   direction: ['direction', 'типоперации', 'направление', 'тип'],
   bankCategory: ['bankcategory', 'категория', 'категориябанка'],
   time: ['time', 'время', 'времяоперации'],
+  processedAt: ['processedat', 'датаобработки'],
+  authorizationCode: ['authorizationcode', 'кодавторизации'],
+  rawDescription: ['rawdescription', 'исходноеописание'],
   parseConfidence: ['parseconfidence'],
   parseReviewReasons: ['parsereviewreasons'],
 };
@@ -245,6 +251,24 @@ export async function parseStatement(
           : {}),
         ...(mapping.time !== undefined && mapping.time >= 0
           ? { transactionTime: (row[mapping.time] ?? '').trim() || undefined }
+          : {}),
+        ...(mapping.processedAt !== undefined && mapping.processedAt >= 0
+          ? {
+              processedAt: (row[mapping.processedAt] ?? '').trim() || undefined,
+            }
+          : {}),
+        ...(mapping.authorizationCode !== undefined &&
+        mapping.authorizationCode >= 0
+          ? {
+              authorizationCode:
+                (row[mapping.authorizationCode] ?? '').trim() || undefined,
+            }
+          : {}),
+        ...(mapping.rawDescription !== undefined && mapping.rawDescription >= 0
+          ? {
+              rawDescription:
+                (row[mapping.rawDescription] ?? '').trim() || undefined,
+            }
           : {}),
         ...(mapping.parseConfidence !== undefined &&
         mapping.parseConfidence >= 0

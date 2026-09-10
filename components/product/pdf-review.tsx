@@ -35,7 +35,7 @@ export function PdfReview({
   const [reviewOnly, setReviewOnly] = useState(false);
   const selected = preview.rows.filter((row) => row.selected);
   const reviewRows = preview.rows.filter((row) => pdfRowReviewReason(row));
-  const reviewCount = reviewRows.length + preview.skippedRows;
+  const reviewCount = reviewRows.length;
   const unresolved = selected.some((row) => pdfRowReviewReason(row));
   const visibleRows = reviewOnly ? reviewRows : preview.rows;
   const edit = (id: string, change: Partial<PdfRow>) =>
@@ -93,13 +93,20 @@ export function PdfReview({
         </div>
       </div>
 
+      {preview.reconciliation?.status === 'exact' && (
+        <div className="recognition-complete">
+          <FileCheck2 size={18} />
+          Выписка распознана полностью — суммы совпали с итогами банка
+        </div>
+      )}
+
       {reviewCount > 0 && (
         <div className="review-notice">
           <div>
             <strong>Есть операции, которые стоит проверить</strong>
             <p>
-              {reviewCount} строк требуют дополнительной проверки. Они не будут
-              учтены автоматически.
+              {reviewCount} операций требуют дополнительной проверки. Они не
+              будут учтены автоматически.
             </p>
           </div>
           {reviewRows.length > 0 && (
@@ -116,8 +123,7 @@ export function PdfReview({
           disabled={busy || !selected.length || unresolved}
           onClick={onSubmit}
         >
-          {busy ? 'Ищем расходы…' : 'Найти регулярные расходы'}{' '}
-          <ArrowRight size={18} />
+          {busy ? 'Ищем подписки…' : 'Найти подписки'} <ArrowRight size={18} />
         </button>
         <button className="secondary-button" onClick={() => openRows(false)}>
           <Search size={17} />

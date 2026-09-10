@@ -16,6 +16,11 @@ import {
   selectBankProfile,
   type BankStatementProfile,
 } from './pdf/profiles.ts';
+import {
+  canParseModernSber,
+  parseModernSberStatement,
+  type StatementReconciliation,
+} from './pdf/sber.ts';
 export type ParseReviewReason =
   | 'multiple_amount_candidates'
   | 'merchant_missing'
@@ -29,8 +34,12 @@ export type PdfRow = {
   id: string;
   date: string;
   time?: string;
+  processedAt?: string;
+  authorizationCode?: string;
   merchant: string;
+  rawDescription?: string;
   bankCategory?: string;
+  balanceAfterMinor?: number;
   amount: string;
   currency: string;
   direction: 'expense' | 'income' | 'unknown';
@@ -47,6 +56,12 @@ export type PdfPreview = {
   totalPages: number;
   skippedRows: number;
   emptyPages: number;
+  transactionBlocks?: number;
+  ignoredBlocks?: number;
+  reviewCount?: number;
+  statementFormat?: 'sber-modern' | 'generic';
+  reconciliation?: StatementReconciliation;
+  period?: { from: string; to: string };
   warnings: string[];
 };
 export type PdfCell = PdfTextItem;
@@ -607,10 +622,11 @@ export async function extractPdf(
   try {
     if (pdf.numPages > 30)
       throw new Error('Максимум 30 страниц PDF. Разделите период выписки.');
-    const rows: PdfRow[] = [];
+    let rows: PdfRow[] = [];
     let textLength = 0,
       skipped = 0,
       emptyPages = 0;
+    const pageCells: PdfCell[][] = [];
     for (let pageNo = 1; pageNo <= pdf.numPages; pageNo++) {
       const page = await pdf.getPage(pageNo);
       const text = await page.getTextContent();
@@ -638,18 +654,65 @@ export async function extractPdf(
       if (textLength > 1_000_000 || items.length > 30000)
         throw new Error('В PDF слишком много данных для одного импорта.');
       if (pageLength < 30) emptyPages++;
-      const parsed = parsePdfPage(cells, currency, pageNo);
-      rows.push(...parsed.rows);
-      skipped += parsed.skipped;
-      if (rows.length > 1000)
-        throw new Error(
-          'В PDF больше 1 000 операций. Загрузите выписку за более короткий период.',
-        );
+      pageCells.push(cells);
       page.cleanup();
     }
     if (textLength < 40)
       throw new Error(
         'В PDF нет текстового слоя: вероятно, это скан. Скачайте исходную электронную выписку из банка. Распознавание изображений пока не поддерживается.',
+      );
+    const pageLines = pageCells.map((cells) => groupItemsIntoLines(cells));
+    const sberScore = canParseModernSber(pageLines.flat());
+    let transactionBlocks: number | undefined,
+      ignoredBlocks: number | undefined,
+      reconciliation: StatementReconciliation | undefined,
+      period: PdfPreview['period'],
+      statementFormat: PdfPreview['statementFormat'] = 'generic';
+    if (sberScore >= 0.67) {
+      const parsed = parseModernSberStatement(pageLines);
+      statementFormat = 'sber-modern';
+      transactionBlocks = parsed.transactionBlocks;
+      ignoredBlocks = parsed.ignoredBlocks;
+      reconciliation = parsed.reconciliation;
+      period = parsed.period;
+      skipped = parsed.ignoredBlocks;
+      rows = parsed.transactions.map((transaction, index) => {
+        const row: PdfRow = {
+          id: `sber-${index}`,
+          date: transaction.date,
+          time: transaction.time,
+          processedAt: transaction.processedAt,
+          authorizationCode: transaction.authorizationCode,
+          merchant: transaction.merchant,
+          rawDescription: transaction.rawDescription,
+          bankCategory: transaction.bankCategory,
+          balanceAfterMinor: transaction.balanceAfterMinor,
+          amount: String(transaction.amountMinor / 100),
+          currency: transaction.currency,
+          direction: transaction.direction,
+          dateConfidence: transaction.time ? 0.99 : 0.75,
+          merchantConfidence: transaction.merchant ? 0.98 : 0.2,
+          amountConfidence: 0.99,
+          directionConfidence: 0.99,
+          parseConfidence: transaction.parseConfidence,
+          reviewReasons: transaction.reviewReasons as ParseReviewReason[],
+          selected: false,
+        };
+        row.selected = row.direction === 'expense' && !pdfRowReviewReason(row);
+        return row;
+      });
+    } else {
+      for (const [index, cells] of pageCells.entries()) {
+        const parsed = parsePdfPage(cells, currency, index + 1);
+        rows.push(...parsed.rows);
+        skipped += parsed.skipped;
+      }
+      transactionBlocks = rows.length + skipped;
+      ignoredBlocks = skipped;
+    }
+    if (rows.length > 1000)
+      throw new Error(
+        'В PDF больше 1 000 операций. Загрузите выписку за более короткий период.',
       );
     if (!rows.length)
       throw new Error(
@@ -662,7 +725,7 @@ export async function extractPdf(
       warnings.push(
         'У части строк не определено направление. Укажите расход или поступление вручную.',
       );
-    if (skipped)
+    if (skipped && statementFormat === 'generic')
       warnings.push(
         'Пропущено строк с датами: ' +
           skipped +
@@ -674,11 +737,26 @@ export async function extractPdf(
           emptyPages +
           ' страницах почти нет текста; данные с них могли не распознаться.',
       );
+    if (reconciliation?.status === 'exact')
+      warnings.unshift(
+        'Выписка распознана полностью: суммы операций совпали с итогами банка.',
+      );
+    else if (reconciliation?.status === 'mismatch')
+      warnings.push(
+        'Итоговые суммы операций отличаются от итогов в выписке. Проверьте отмеченные операции.',
+      );
+    const reviewCount = rows.filter((row) => !!pdfRowReviewReason(row)).length;
     return {
       rows,
       totalPages: pdf.numPages,
       skippedRows: skipped,
       emptyPages,
+      transactionBlocks,
+      ignoredBlocks,
+      reviewCount,
+      statementFormat,
+      reconciliation,
+      period,
       warnings,
     };
   } finally {
@@ -692,7 +770,10 @@ export function pdfRowsToTable(rows: unknown): string[][] {
     [
       'date',
       'time',
+      'processedAt',
+      'authorizationCode',
       'merchant',
+      'rawDescription',
       'bankCategory',
       'amount',
       'currency',
@@ -716,7 +797,10 @@ export function pdfRowsToTable(rows: unknown): string[][] {
         return [
           r.date,
           typeof r.time === 'string' ? r.time : '',
+          typeof r.processedAt === 'string' ? r.processedAt : '',
+          typeof r.authorizationCode === 'string' ? r.authorizationCode : '',
           r.merchant,
+          typeof r.rawDescription === 'string' ? r.rawDescription : '',
           typeof r.bankCategory === 'string' ? r.bankCategory : '',
           r.amount,
           r.currency,

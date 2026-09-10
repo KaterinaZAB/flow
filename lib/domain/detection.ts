@@ -5,7 +5,7 @@ import type {
   BillingPeriod,
   RecurringExpenseType,
 } from './types.ts';
-import { services } from './catalog.ts';
+import { merchantBehavior, services } from './catalog.ts';
 import {
   addPeriod,
   advanceTo,
@@ -144,6 +144,12 @@ export function detectRecurring(
   const groups = new Map<string, Transaction[]>();
   for (const t of transactions) {
     if (t.recurringExpenseId) continue;
+    if (
+      ['usage_based', 'retail', 'transfer'].includes(
+        merchantBehavior(t.originalMerchant),
+      )
+    )
+      continue;
     const key = t.normalizedMerchant + '|' + t.currency;
     const g = groups.get(key) ?? [];
     g.push(t);
@@ -181,6 +187,12 @@ export function detectRecurring(
           status: 'active',
           serviceId: service?.id ?? null,
           source: 'bank-import',
+          recurringConfidence: 0.4,
+          subscriptionConfidence:
+            service?.merchantClass === 'subscription' ||
+            service?.category === 'subscription'
+              ? 0.45
+              : 0.1,
           confidence: 0.4,
           createdAt: now,
           updatedAt: now,
@@ -232,6 +244,15 @@ export function detectRecurring(
         ? median(amounts.slice(-4))
         : last.amountMinor;
       const now = new Date().toISOString();
+      const recurringConfidence = Math.max(0.5, score - (stale ? 0.14 : 0));
+      const subscriptionConfidence =
+        service?.merchantClass === 'subscription' ||
+        service?.category === 'subscription'
+          ? Math.min(0.99, recurringConfidence + 0.08)
+          : service?.merchantClass === 'regular_bill' ||
+              service?.merchantClass === 'bank_service'
+            ? 0.1
+            : Math.min(0.35, recurringConfidence * 0.4);
       const expense: RecurringExpense = {
         id: crypto.randomUUID(),
         name: service?.name ?? last.originalMerchant,
@@ -245,7 +266,9 @@ export function detectRecurring(
         status: 'active',
         serviceId: service?.id ?? null,
         source: 'bank-import',
-        confidence: Math.max(0.5, score - (stale ? 0.14 : 0)),
+        recurringConfidence,
+        subscriptionConfidence,
+        confidence: recurringConfidence,
         createdAt: now,
         updatedAt: now,
       };

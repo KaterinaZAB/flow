@@ -9,6 +9,7 @@ export const expenseTypes = [
   'service',
   'software',
   'cloud',
+  'bank_service',
   'other',
 ] as const;
 export type RecurringExpenseType = (typeof expenseTypes)[number];
@@ -49,6 +50,11 @@ export type RecurringExpense = {
   serviceId: string | null;
   source: ExpenseSource | 'detected';
   nextPaymentAtSource?: 'provider_email' | 'transaction_prediction' | 'manual';
+  /** Probability that the observed payments repeat on the inferred cadence. */
+  recurringConfidence?: number;
+  /** Probability that the merchant represents a subscription rather than another regular bill. */
+  subscriptionConfidence?: number;
+  /** Legacy persisted recurring confidence, retained for workspace compatibility. */
   confidence: number | null;
   createdAt: string;
   updatedAt: string;
@@ -58,6 +64,9 @@ export type Transaction = {
   originalMerchant: string;
   bankCategory?: string;
   transactionTime?: string;
+  processedAt?: string;
+  authorizationCode?: string;
+  rawDescription?: string;
   parseConfidence?: number;
   parseReviewReasons?: string[];
   normalizedMerchant: string;
@@ -97,12 +106,32 @@ export type Service = {
   category: RecurringExpenseType;
   group?: string;
   merchantAliases: string[];
+  aliases?: MerchantAlias[];
+  merchantClass?: MerchantBehaviorClass;
   website?: string;
   manageSubscriptionUrl?: string;
   cancellationUrl?: string;
   cancellationInstructions?: string[];
   color: string;
   monogram: string;
+};
+export type MerchantBehaviorClass =
+  | 'subscription'
+  | 'regular_bill'
+  | 'bank_service'
+  | 'usage_based'
+  | 'retail'
+  | 'transfer'
+  | 'unknown';
+export type MerchantAlias = {
+  pattern: string;
+  matchType: 'exact' | 'prefix' | 'contains' | 'regex';
+  provenance:
+    | 'observed-sber'
+    | 'official-merchant-list'
+    | 'user-example'
+    | 'heuristic';
+  confidence: number;
 };
 export type Recommendation = {
   id: string;
@@ -126,6 +155,7 @@ export const typeLabels: Record<RecurringExpenseType, string> = {
   service: 'Услуги',
   software: 'Софт',
   cloud: 'Облако',
+  bank_service: 'Банковские услуги',
   other: 'Прочее',
 };
 export const periodLabels: Record<BillingPeriod, string> = {

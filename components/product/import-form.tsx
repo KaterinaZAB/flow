@@ -223,27 +223,36 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                   choose(e.dataTransfer.files[0]);
                 }}
               >
-                <div className="scan-icon">
-                  {file ? (
-                    <FileSpreadsheet size={32} />
-                  ) : (
-                    <UploadCloud size={34} />
-                  )}
-                </div>
-                <h2>{file ? file.name : 'Перетащите PDF-выписку сюда'}</h2>
-                <p>
-                  {file
-                    ? (file.size / 1024).toFixed(0) +
-                      ' КБ · файл выбран, запустите анализ ниже'
-                    : 'или выберите файл на устройстве'}
-                </p>
-                <button
-                  type="button"
-                  className={file ? 'text-link' : 'primary-button'}
-                  onClick={() => ref.current?.click()}
-                >
-                  {file ? 'Выбрать другой файл' : 'Выбрать файл'}
-                </button>
+                {file ? (
+                  <div className="selected-file-card">
+                    <div className="scan-icon">
+                      <FileSpreadsheet size={32} />
+                    </div>
+                    <div className="selected-file-copy">
+                      <h2>{file.name}</h2>
+                      <p>
+                        {file.name.split('.').pop()?.toUpperCase()} ·{' '}
+                        {(file.size / 1024).toFixed(0)} КБ
+                      </p>
+                      <strong>Файл готов к анализу</strong>
+                    </div>
+                  </div>
+                ) : (
+                  <>
+                    <div className="scan-icon">
+                      <UploadCloud size={34} />
+                    </div>
+                    <h2>Перетащите PDF-выписку сюда</h2>
+                    <p>или выберите файл на устройстве</p>
+                    <button
+                      type="button"
+                      className="primary-button"
+                      onClick={() => ref.current?.click()}
+                    >
+                      Выбрать файл
+                    </button>
+                  </>
+                )}
                 <input
                   ref={ref}
                   type="file"
@@ -252,23 +261,34 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                   aria-label="Банковская выписка"
                   onChange={(e) => choose(e.target.files?.[0])}
                 />
-                <span className="muted">PDF до 5 МБ · CSV / XLSX до 2 МБ</span>
                 {file && headers.length === 0 && (
-                  <button
-                    disabled={busy}
-                    onClick={() => void upload()}
-                    className="primary-button import-analyze"
-                  >
-                    {file.name.toLowerCase().endsWith('.pdf')
-                      ? 'Прочитать PDF и проверить операции'
-                      : 'Начать анализ выписки'}
-                    <ArrowRight size={20} />
-                  </button>
+                  <div className="selected-file-actions">
+                    <button
+                      type="button"
+                      className="secondary-button"
+                      onClick={() => ref.current?.click()}
+                    >
+                      Изменить загруженный файл
+                    </button>
+                    <button
+                      disabled={busy}
+                      onClick={() => void upload()}
+                      className="primary-button import-analyze"
+                    >
+                      Найти подписки
+                      <ArrowRight size={20} />
+                    </button>
+                  </div>
                 )}
                 {!file && (
-                  <small className="muted">
-                    Подойдёт один месяц. PDF — текстовый, без пароля.
-                  </small>
+                  <>
+                    <span className="muted">
+                      PDF до 5 МБ · CSV / XLSX до 2 МБ
+                    </span>
+                    <small className="muted">
+                      Подойдёт один месяц. PDF — текстовый, без пароля.
+                    </small>
+                  </>
                 )}
               </div>
               <div className="import-options">
