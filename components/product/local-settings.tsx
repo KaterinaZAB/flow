@@ -1,6 +1,7 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
+import { SelectField } from './select-field';
 import {
   Dialog,
   DialogContent,
@@ -59,7 +60,8 @@ export function LocalSettings({
       | 'local-version'
       | null
     >(null),
-    [backup, setBackup] = useState<unknown>();
+    [backup, setBackup] = useState<unknown>(),
+    [restoreMethod, setRestoreMethod] = useState<'key' | 'backup'>('key');
   const refresh = () => getDevice().then(setDevice);
   useEffect(() => {
     void refresh()
@@ -210,43 +212,39 @@ export function LocalSettings({
         </section>
         <section className="panel settings-panel">
           <h2>Восстановить данные</h2>
-          <p>
-            Введите ключ с прежнего устройства. Можно также выбрать локальный
-            зашифрованный файл резервной копии.
-          </p>
-          <label className="form-field">
-            Ключ восстановления
-            <Input
-              type="password"
-              autoComplete="off"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="POTOK1:…"
-            />
-          </label>
-          <label className="form-field">
-            Резервная копия (необязательно)
-            <input
-              type="file"
-              accept=".json"
-              onChange={(e) =>
-                void run(async () => {
+          <div className="settings-tabs" role="tablist" aria-label="Способ восстановления">
+            <button type="button" role="tab" aria-selected={restoreMethod === 'key'} className={restoreMethod === 'key' ? 'active' : undefined} onClick={() => setRestoreMethod('key')}>Ключ</button>
+            <button type="button" role="tab" aria-selected={restoreMethod === 'backup'} className={restoreMethod === 'backup' ? 'active' : undefined} onClick={() => setRestoreMethod('backup')}>Резервная копия</button>
+          </div>
+          {restoreMethod === 'key' ? (
+            <label className="form-field">
+              Ключ восстановления
+              <Input type="password" autoComplete="off" value={input} onChange={(e) => setInput(e.target.value)} placeholder="POTOK1:…" />
+            </label>
+          ) : (
+            <>
+              <label className="form-field">
+                Выберите зашифрованную резервную копию
+                <input type="file" accept=".json" onChange={(e) => void run(async () => {
                   const f = e.target.files?.[0];
                   if (!f) return;
-                  if (f.size > 9 * 1024 * 1024)
-                    throw new Error('Файл слишком большой.');
+                  if (f.size > 9 * 1024 * 1024) throw new Error('Файл слишком большой.');
                   const data = JSON.parse(await f.text());
                   setBackup(data.envelope);
-                })
-              }
-            />
-          </label>
+                })} />
+              </label>
+              <label className="form-field">
+                Ключ восстановления
+                <Input type="password" autoComplete="off" value={input} onChange={(e) => setInput(e.target.value)} placeholder="POTOK1:…" />
+              </label>
+            </>
+          )}
           <button
-            disabled={busy || !input}
+            disabled={busy || !input || (restoreMethod === 'backup' && !backup)}
             className="secondary-button"
             onClick={() => setConfirm('restore')}
           >
-            Открыть сейф
+            Восстановить
           </button>
         </section>
         <section className="panel settings-panel">
@@ -292,35 +290,22 @@ export function LocalSettings({
           >
             Удалить импортированные данные
           </button>
-          <h3>Gmail · скоро</h3>
-          <p>
-            Подключение временно отключено. Возобновим его после переноса чтения
-            и анализа писем в браузер.
-          </p>
-          <button className="secondary-button" disabled>
-            Подключить Gmail
-          </button>
         </section>
         <section className="panel settings-panel">
           <h2>Валюта по умолчанию</h2>
-          <select
-            aria-label="Валюта по умолчанию"
+          <SelectField
+            label="Валюта по умолчанию"
             value={state.settings.baseCurrency}
-            onChange={(e) =>
+            onChange={(value) =>
               void run(() =>
                 updateWorkspace((s) => {
-                  s.settings.baseCurrency = e.target
-                    .value as Workspace['settings']['baseCurrency'];
+                  s.settings.baseCurrency =
+                    value as Workspace['settings']['baseCurrency'];
                 }),
               )
             }
-          >
-            {['RUB', 'USD', 'EUR', 'GBP', 'KZT', 'BYN', 'GEL', 'TRY'].map(
-              (c) => (
-                <option key={c}>{c}</option>
-              ),
-            )}
-          </select>
+            options={['RUB', 'USD', 'EUR', 'GBP', 'KZT', 'BYN', 'GEL', 'TRY'].map((c) => ({ value: c, label: c }))}
+          />
         </section>
         <section className="panel settings-panel">
           <h2>На этом устройстве</h2>

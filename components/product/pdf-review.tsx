@@ -23,21 +23,20 @@ export function PdfReview({
   preview,
   onChange,
   onSubmit,
-  onBack,
   busy,
 }: {
   preview: PdfPreview;
   onChange: (rows: PdfRow[]) => void;
   onSubmit: () => void;
-  onBack: () => void;
   busy: boolean;
 }) {
   const [showRows, setShowRows] = useState(false);
-  const [reviewOnly, setReviewOnly] = useState(false);
+  const [reviewTab, setReviewTab] = useState<'recognized' | 'review'>('recognized');
   const selected = preview.rows.filter((row) => row.selected);
   const reviewRows = preview.rows.filter((row) => pdfRowReviewReason(row));
   const reviewCount = reviewRows.length;
   const unresolved = selected.some((row) => !pdfRowImportable(row));
+  const reviewOnly = reviewTab === 'review';
   const visibleRows = reviewOnly ? reviewRows : preview.rows;
   const edit = (id: string, change: Partial<PdfRow>) =>
     onChange(
@@ -60,8 +59,8 @@ export function PdfReview({
           : row,
       ),
     );
-  const openRows = (onlyReview = false) => {
-    setReviewOnly(onlyReview);
+  const openRows = (tab: 'recognized' | 'review' = 'recognized') => {
+    setReviewTab(tab);
     setShowRows(true);
   };
 
@@ -94,30 +93,6 @@ export function PdfReview({
         </div>
       </div>
 
-      {preview.reconciliation?.status === 'exact' && (
-        <div className="recognition-complete">
-          <FileCheck2 size={18} />
-          Выписка распознана полностью — суммы совпали с итогами банка
-        </div>
-      )}
-
-      {reviewCount > 0 && (
-        <div className="review-notice">
-          <div>
-            <strong>Есть операции, которые стоит проверить</strong>
-            <p>
-              {reviewCount} операций содержат неоднозначные поля. Сильные
-              сигналы останутся в результате с предупреждением.
-            </p>
-          </div>
-          {reviewRows.length > 0 && (
-            <button className="text-link" onClick={() => openRows(true)}>
-              Проверить
-            </button>
-          )}
-        </div>
-      )}
-
       <div className="recognition-actions">
         <button
           className="primary-button"
@@ -126,12 +101,9 @@ export function PdfReview({
         >
           {busy ? 'Ищем подписки…' : 'Найти подписки'} <ArrowRight size={18} />
         </button>
-        <button className="secondary-button" onClick={() => openRows(false)}>
+        <button className="secondary-button" onClick={() => openRows()}>
           <Search size={17} />
-          Посмотреть распознанные операции
-        </button>
-        <button className="text-link" onClick={onBack}>
-          Выбрать другой файл
+          Проверить вручную
         </button>
       </div>
 
@@ -155,6 +127,26 @@ export function PdfReview({
             </div>
             <button className="text-link" onClick={() => setShowRows(false)}>
               Скрыть
+            </button>
+          </div>
+          <div className="review-tabs" role="tablist" aria-label="Операции выписки">
+            <button
+              type="button"
+              role="tab"
+              aria-selected={!reviewOnly}
+              className={!reviewOnly ? 'active' : undefined}
+              onClick={() => setReviewTab('recognized')}
+            >
+              Распознанные операции
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={reviewOnly}
+              className={reviewOnly ? 'active' : undefined}
+              onClick={() => setReviewTab('review')}
+            >
+              Операции для проверки{reviewCount ? ` (${reviewCount})` : ''}
             </button>
           </div>
           {!reviewOnly && (

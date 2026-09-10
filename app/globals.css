@@ -432,6 +432,11 @@ p {
 }
 .selected-file-actions > button {
   flex: 1;
+  min-height: 52px;
+}
+.selected-file-actions .import-analyze.primary-button {
+  min-height: 52px;
+  margin-top: 0;
 }
 .recognition-complete {
   display: flex;
@@ -715,6 +720,11 @@ p {
   align-items: center;
   justify-content: center;
   gap: 10px;
+}
+.empty-actions > .primary-button,
+.empty-actions > .secondary-button {
+  min-height: 48px;
+  justify-content: center;
 }
 .hero-label {
   display: flex;
@@ -1922,6 +1932,11 @@ input[type='radio'] {
   font-size: 0.875rem;
   color: var(--text-secondary);
 }
+.import-steps li + li::before {
+  content: '—';
+  margin-right: var(--space-2);
+  color: var(--border-strong);
+}
 .import-steps li > span {
   display: grid;
   place-items: center;
@@ -1954,7 +1969,7 @@ input[type='radio'] {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: var(--space-5);
+  padding: var(--space-6) var(--space-5);
   border-radius: var(--r-card);
   background: var(--surface-raised);
 }
@@ -1966,17 +1981,6 @@ input[type='radio'] {
   font-size: 0.75rem;
   color: var(--text-secondary);
 }
-.review-notice {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--space-5);
-  padding: var(--space-5);
-  margin-bottom: var(--space-5);
-  border: 1px solid var(--border);
-  border-radius: var(--r-card);
-}
-.review-notice p,
 .recognized-rows-heading p {
   margin-top: 5px;
   font-size: 0.8125rem;
@@ -1993,9 +1997,33 @@ input[type='radio'] {
   min-height: 52px;
   justify-content: center;
 }
-.recognition-actions > .text-link {
-  grid-column: 1 / -1;
-  justify-self: center;
+.review-tabs,
+.settings-tabs {
+  display: flex;
+  gap: var(--space-2);
+  margin: 0 0 var(--space-5);
+  padding: var(--space-1);
+  border-radius: var(--r-control);
+  background: var(--surface-raised);
+}
+.review-tabs button,
+.settings-tabs button {
+  flex: 1;
+  min-height: 38px;
+  padding: 0 var(--space-3);
+  border: 0;
+  border-radius: calc(var(--r-control) - 3px);
+  background: transparent;
+  color: var(--text-secondary);
+  font: inherit;
+  font-size: 0.8125rem;
+  cursor: pointer;
+}
+.review-tabs button.active,
+.settings-tabs button.active {
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: var(--shadow-sm);
 }
 .recognized-rows {
   margin-top: var(--space-8);
@@ -2045,6 +2073,15 @@ input[type='radio'] {
   max-width: 900px;
   gap: var(--space-4);
 }
+.import-panel:has(.dropzone.file-ready) {
+  padding: 0;
+}
+.dropzone.file-ready {
+  min-height: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
 .import-analyze.primary-button {
   width: 100%;
   min-height: 56px;
@@ -2082,15 +2119,9 @@ input[type='radio'] {
   .recognition-actions {
     grid-template-columns: 1fr;
   }
-  .recognition-actions > .text-link {
-    grid-column: auto;
-  }
-  .review-notice {
-    align-items: flex-start;
-  }
-  .import-reassurance .text-link {
-    width: 100%;
-  }
+  .import-steps li + li::before { display: none; }
+  .review-tabs,
+  .settings-tabs { flex-direction: column; }
 }
 .chart-grid {
   stroke: var(--border);

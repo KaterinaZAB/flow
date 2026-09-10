@@ -5,13 +5,12 @@ import type { PdfPreview } from '@/lib/import/pdf';
 import { useState, useRef } from 'react';
 import {
   UploadCloud,
-  ShieldCheck,
   FileSpreadsheet,
   ArrowRight,
   CheckCircle2,
 } from 'lucide-react';
 import { SelectField } from './select-field';
-import { currencies, type TransactionImport } from '@/lib/domain/types';
+import { type TransactionImport } from '@/lib/domain/types';
 
 import type { Candidate, Transaction } from '@/lib/domain/types';
 type Result = {
@@ -35,7 +34,6 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
     [busy, setBusy] = useState(false),
     [error, setError] = useState(''),
     [drag, setDrag] = useState(false),
-    [currency, setCurrency] = useState('RUB'),
     [result, setResult] = useState<Result | null>(null),
     [headers, setHeaders] = useState<string[]>([]),
     [mapping, setMapping] = useState<Record<string, number>>({
@@ -73,7 +71,7 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
       const form = new FormData();
       form.set('file', file);
       form.set('amountMode', 'auto');
-      form.set('currency', currency);
+      form.set('currency', 'RUB');
       if (reviewed && pdfPreview) {
         form.set('pdfReviewed', 'true');
         form.set('pdfRows', JSON.stringify(pdfPreview.rows));
@@ -274,7 +272,7 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                       setPdfPreview(null);
                     }}
                   >
-                    Загрузить выписку за больший период
+                    Загрузить выписку
                   </button>
                 )}
                 <a
@@ -317,16 +315,12 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
               preview={pdfPreview}
               onChange={(rows) => setPdfPreview({ ...pdfPreview, rows })}
               onSubmit={() => void upload(true)}
-              onBack={() => {
-                setPdfPreview(null);
-                setFile(null);
-              }}
               busy={busy}
             />
           ) : (
             <>
               <div
-                className={'dropzone ' + (drag ? 'drag' : '')}
+                className={'dropzone ' + (file ? 'file-ready ' : '') + (drag ? 'drag' : '')}
                 onDragOver={(e) => {
                   e.preventDefault();
                   setDrag(true);
@@ -357,7 +351,7 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                     <div className="scan-icon">
                       <UploadCloud size={34} />
                     </div>
-                    <h2>Перетащите PDF-выписку сюда</h2>
+                    <h2>Перетащите выписку сюда</h2>
                     <p>или выберите файл на устройстве</p>
                     <button
                       type="button"
@@ -383,14 +377,14 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                       className="secondary-button"
                       onClick={() => ref.current?.click()}
                     >
-                      Изменить загруженный файл
+                      Изменить
                     </button>
                     <button
                       disabled={busy}
                       onClick={() => void upload()}
                       className="primary-button import-analyze"
                     >
-                      Найти подписки
+                      Найти расходы
                       <ArrowRight size={20} />
                     </button>
                   </div>
@@ -400,25 +394,8 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                     <span className="muted">
                       PDF до 5 МБ · CSV / XLSX до 2 МБ
                     </span>
-                    <small className="muted">
-                      Подойдёт один месяц. PDF — текстовый, без пароля.
-                    </small>
                   </>
                 )}
-              </div>
-              <div className="import-options">
-                <div className="form-field">
-                  <label htmlFor="import-currency">
-                    Валюта, если не указана
-                  </label>
-                  <SelectField
-                    id="import-currency"
-                    label="Валюта импорта"
-                    value={currency}
-                    onChange={setCurrency}
-                    options={currencies.map((v) => ({ value: v, label: v }))}
-                  />
-                </div>
               </div>
               <p className="import-hint">
                 Расходы и пополнения определим автоматически.
@@ -475,13 +452,6 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
             </>
           )}
         </section>
-        <div className="import-reassurance">
-          <ShieldCheck size={24} />
-          <p>Файл анализируется на устройстве и не отправляется на сервер.</p>
-          <a href="/example-statement.csv" download className="text-link">
-            Попробовать на примере CSV ↗
-          </a>
-        </div>
       </div>
 
       {imports.length > 0 && (

@@ -35,7 +35,9 @@ test('PDF review uses progressive disclosure and keeps detection primary', () =>
   const source = readFileSync('components/product/pdf-review.tsx', 'utf8');
   assert.match(source, /showRows &&/);
   assert.match(source, /Найти подписки/);
-  assert.match(source, /Посмотреть распознанные операции/);
+  assert.match(source, /Проверить вручную/);
+  assert.match(source, /Распознанные операции/);
+  assert.match(source, /Операции для проверки/);
   assert.match(
     source,
     /сомнительные строки[\s\S]*не будем учитывать[\s\S]*автоматически/,
