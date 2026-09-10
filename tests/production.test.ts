@@ -66,3 +66,12 @@ test('PWA activates new application code instead of keeping a stale bundle', () 
   assert.match(source, /controllerchange/);
   assert.match(source, /window\.location\.reload\(\)/);
 });
+
+test('production pages explicitly block search indexing', () => {
+  const layout = readFileSync('app/layout.tsx', 'utf8');
+  const caddy = readFileSync('deploy/Caddyfile', 'utf8');
+  const robots = readFileSync('public/robots.txt', 'utf8');
+  assert.match(layout, /robots:[\s\S]*index: false[\s\S]*follow: false/);
+  assert.match(caddy, /X-Robots-Tag "noindex, nofollow/);
+  assert.match(robots, /User-agent: \*[\s\S]*Disallow: \//);
+});

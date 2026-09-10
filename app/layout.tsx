@@ -12,6 +12,16 @@ export const metadata: Metadata = {
   description:
     'Загрузите выписку и получите карту регулярных расходов: прогноз списаний, категории и понятные рекомендации.',
   manifest: '/manifest.webmanifest',
+  robots: {
+    index: false,
+    follow: false,
+    nocache: true,
+    googleBot: {
+      index: false,
+      follow: false,
+      noimageindex: true,
+    },
+  },
 };
 export default function RootLayout({
   children,
