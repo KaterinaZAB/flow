@@ -1,9 +1,9 @@
-import { readWorkspace, updateWorkspace } from './repository';
-import { validateExpense } from '../domain/validation';
-import { parseStatement, MappingError } from '../import/parse';
-import { extractPdf } from '../import/pdf';
-import { detectRecurring } from '../domain/detection';
-import { today } from '../domain/calendar';
+import { readWorkspace, updateWorkspace } from './repository.ts';
+import { validateExpense } from '../domain/validation.ts';
+import { parseStatement, MappingError } from '../import/parse.ts';
+import { extractPdf } from '../import/pdf.ts';
+import { detectRecurring } from '../domain/detection.ts';
+import { today } from '../domain/calendar.ts';
 /** Local command adapter for existing forms. Response objects are in-memory results, never HTTP requests. */
 export async function localCommand(path: string, options: RequestInit = {}) {
   try {
@@ -120,13 +120,34 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         state.candidates = state.candidates.filter(
           (c) => c.decision !== 'pending',
         );
-        const detected = detectRecurring(
-          state.transactions.filter(
-            (t) => !t.recurringExpenseId && !used.has(t.id),
-          ),
-          id,
-          today(),
+        const eligible = state.transactions.filter(
+          (t) => !t.recurringExpenseId && !used.has(t.id),
         );
+        // Run the just-parsed operations independently as well. Existing local
+        // history can contain old imported rows or dismissed candidates, but it
+        // must never hide a newly found known subscription from this import.
+        const detected = [
+          ...detectRecurring(eligible, id, today()),
+          ...(fresh.length ? detectRecurring(fresh, id, today()) : []),
+        ].filter((candidate, index, all) => {
+          const key = [
+            candidate.expense.serviceId ?? candidate.expense.name.toLowerCase(),
+            candidate.expense.amountMinor,
+            candidate.expense.currency,
+            candidate.expense.billingPeriod,
+          ].join('|');
+          return (
+            all.findIndex((other) => {
+              const otherKey = [
+                other.expense.serviceId ?? other.expense.name.toLowerCase(),
+                other.expense.amountMinor,
+                other.expense.currency,
+                other.expense.billingPeriod,
+              ].join('|');
+              return otherKey === key;
+            }) === index
+          );
+        });
         state.candidates.push(...detected);
         count = detected.length;
         state.imports.unshift({
