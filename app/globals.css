@@ -1557,6 +1557,11 @@ button:disabled {
   border: 1px solid transparent;
   border-radius: var(--r-card);
 }
+.dashboard-top > .panel,
+.kpi-grid > .panel,
+.dashboard-bottom > .panel {
+  background: var(--card);
+}
 .primary-button,
 .secondary-button,
 .danger-button {
@@ -2076,7 +2081,8 @@ input[type='radio'] {
   padding: 0;
 }
 .dropzone.file-ready {
-  align-items: center;
+  align-items: flex-start;
+  text-align: left;
   min-height: 0;
   margin-top: 24px;
   padding: 0;
