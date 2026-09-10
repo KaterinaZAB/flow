@@ -263,7 +263,7 @@ p {
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin: 0 0 var(--space-6);
+  margin: 0 0 18px;
 }
 .list-tabs > span {
   font-size: 0.75rem;
@@ -1204,10 +1204,41 @@ p {
   font-size: 1.1875rem;
 }
 .settings-panel > p {
-  font-size: 0.875rem;
-  line-height: 1.9;
-  margin: 12px 0;
+  max-width: 720px;
+  font-size: 0.8125rem;
+  line-height: 1.7;
+  margin: 10px 0 16px;
   color: var(--text-secondary);
+}
+.settings-panel > h2 {
+  font-size: 1.25rem;
+  line-height: 1.35;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+.settings-panel > h2 + p {
+  font-size: 0.875rem;
+}
+.settings-panel > h3 {
+  margin-top: var(--space-6);
+  font-size: 0.9375rem;
+  line-height: 1.4;
+  font-weight: 600;
+}
+.settings-panel .form-field {
+  gap: var(--space-2);
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
+  font-weight: 550;
+}
+.settings-panel .form-field input,
+.settings-panel [data-slot='select-trigger'] {
+  color: var(--foreground);
+  font-size: 0.875rem;
+  font-weight: 400;
+}
+.settings-panel .page-actions {
+  margin-top: var(--space-5);
 }
 .settings-panel > .secondary-button,
 .settings-panel > .danger-button {
@@ -1556,11 +1587,11 @@ button:disabled {
 .panel {
   border: 1px solid transparent;
   border-radius: var(--r-card);
-}
-.dashboard-top > .panel,
-.kpi-grid > .panel,
-.dashboard-bottom > .panel {
   background: var(--card);
+}
+.panel.import-panel,
+.panel.import-history {
+  background: transparent;
 }
 .primary-button,
 .secondary-button,
@@ -1696,6 +1727,7 @@ input[type='radio'] {
   gap: var(--space-2);
   height: auto;
   padding: 0;
+  border-radius: var(--r-pill);
   flex-wrap: wrap;
 }
 [data-slot='tabs-trigger'] {
@@ -2005,9 +2037,9 @@ input[type='radio'] {
 .settings-tabs {
   display: flex;
   gap: var(--space-2);
-  margin: 0 0 var(--space-5);
+  margin: 0 0 18px;
   padding: var(--space-1);
-  border-radius: var(--r-control);
+  border-radius: var(--r-pill);
   background: var(--surface-raised);
 }
 .review-tabs button,
@@ -2016,7 +2048,7 @@ input[type='radio'] {
   min-height: 38px;
   padding: 0 var(--space-3);
   border: 0;
-  border-radius: calc(var(--r-control) - 3px);
+  border-radius: var(--r-pill);
   background: transparent;
   color: var(--text-secondary);
   font: inherit;

@@ -126,7 +126,6 @@ export function RecommendationsPage({
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">ПОЛЬЗА, КОТОРУЮ МОЖНО ПОСЧИТАТЬ</div>
           <h1>Рекомендации</h1>
           <p>Поводы пересмотреть расходы — решение всегда за вами.</p>
         </div>
