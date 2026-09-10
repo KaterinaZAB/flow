@@ -143,6 +143,7 @@ export async function localCommand(path: string, options: RequestInit = {}) {
       });
       return Response.json({
         id,
+        analyzedCount: result.transactions.length,
         transactionCount: added,
         skippedCount: result.skipped + result.transactions.length - added,
         warnings: result.warnings,

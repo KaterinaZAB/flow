@@ -1,6 +1,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { extractPdf, parsePdfPage, pdfRowsToTable } from '../lib/import/pdf.ts';
+import {
+  extractPdf,
+  parsePdfPage,
+  pdfRowReviewReason,
+  pdfRowsToTable,
+} from '../lib/import/pdf.ts';
 import { parseStatement } from '../lib/import/parse.ts';
 import { makePdf, fixtureLines } from './pdf-fixture.ts';
 test('real PDF bytes: extracts dates, merchant and debit, not balance', async () => {
@@ -57,4 +62,33 @@ test('PDF unsigned amounts are preselected expenses; multiline description is re
   assert.equal(r.direction, 'expense');
   assert.equal(r.selected, true);
   assert.match(r.merchant, /monthly payment/);
+});
+test('PDF prefers the merchant column over a bank category', () => {
+  const row = parsePdfPage([
+    { text: 'Date', x: 40, y: 720, width: 30 },
+    { text: 'Category', x: 120, y: 720, width: 50 },
+    { text: 'Merchant', x: 240, y: 720, width: 50 },
+    { text: 'Amount', x: 400, y: 720, width: 50 },
+    { text: '21.06.2026', x: 40, y: 690, width: 60 },
+    { text: 'Travel', x: 120, y: 690, width: 40 },
+    { text: 'NETFLIX', x: 240, y: 690, width: 55 },
+    { text: '-699.00', x: 400, y: 690, width: 50 },
+  ]).rows[0];
+  assert.equal(row.merchant, 'NETFLIX');
+  assert.equal(row.selected, true);
+});
+test('ambiguous PDF rows stay available but are excluded by default', () => {
+  const row = parsePdfPage([
+    { text: 'Date', x: 40, y: 720, width: 30 },
+    { text: 'Merchant', x: 170, y: 720, width: 50 },
+    { text: 'Amount', x: 380, y: 720, width: 50 },
+    { text: '21.06.2026', x: 40, y: 690, width: 60 },
+    { text: 'Travel', x: 170, y: 690, width: 40 },
+    { text: '-699.00', x: 380, y: 690, width: 50 },
+  ]).rows[0];
+  assert.match(pdfRowReviewReason(row) ?? '', /категория банка/);
+  assert.equal(row.selected, false);
+  assert.deepEqual(pdfRowsToTable([row]), [
+    ['date', 'merchant', 'amount', 'currency', 'direction'],
+  ]);
 });

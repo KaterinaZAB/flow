@@ -1878,6 +1878,107 @@ input[type='radio'] {
   border-radius: 50%;
   background: var(--surface-raised);
 }
+.import-steps li > div {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.import-steps li strong {
+  color: inherit;
+  font-size: 0.8125rem;
+}
+.import-steps li small {
+  font-size: 0.6875rem;
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+.recognition-summary {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--space-3);
+  margin: var(--space-6) 0;
+}
+.recognition-summary > div {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: var(--space-5);
+  border-radius: var(--r-card);
+  background: var(--surface-raised);
+}
+.recognition-summary strong {
+  font-size: 1.75rem;
+  line-height: 1;
+}
+.recognition-summary span {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+}
+.review-notice {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-5);
+  padding: var(--space-5);
+  margin-bottom: var(--space-5);
+  border: 1px solid var(--border);
+  border-radius: var(--r-card);
+}
+.review-notice p,
+.recognized-rows-heading p {
+  margin-top: 5px;
+  font-size: 0.8125rem;
+  color: var(--text-secondary);
+}
+.recognition-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--space-3);
+  align-items: center;
+}
+.recognition-actions > .primary-button,
+.recognition-actions > .secondary-button {
+  min-height: 52px;
+  justify-content: center;
+}
+.recognition-actions > .text-link {
+  grid-column: 1 / -1;
+  justify-self: center;
+}
+.recognized-rows {
+  margin-top: var(--space-8);
+  padding-top: var(--space-6);
+  border-top: 1px solid var(--border);
+}
+.recognized-rows-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: var(--space-4);
+  margin-bottom: var(--space-4);
+}
+.row-review-reason {
+  display: block;
+  margin-top: 5px;
+  color: var(--warning);
+  font-size: 0.6875rem;
+}
+.recognition-details {
+  margin-top: var(--space-6);
+  color: var(--text-secondary);
+  font-size: 0.75rem;
+}
+.recognition-details summary {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.recognition-details p {
+  margin-top: var(--space-2);
+  line-height: 1.6;
+}
 .import-steps li[aria-current='step'] {
   color: var(--foreground);
   font-weight: 600;
@@ -1919,6 +2020,21 @@ input[type='radio'] {
   .import-steps {
     flex-direction: column;
     gap: var(--space-2);
+  }
+  .recognition-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+  .recognition-summary > div:last-child {
+    grid-column: 1 / -1;
+  }
+  .recognition-actions {
+    grid-template-columns: 1fr;
+  }
+  .recognition-actions > .text-link {
+    grid-column: auto;
+  }
+  .review-notice {
+    align-items: flex-start;
   }
   .import-reassurance .text-link {
     width: 100%;

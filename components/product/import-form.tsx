@@ -16,6 +16,7 @@ import { currencies, type TransactionImport } from '@/lib/domain/types';
 import type { Candidate, Transaction } from '@/lib/domain/types';
 type Result = {
   id: string;
+  analyzedCount: number;
   transactionCount: number;
   skippedCount: number;
   warnings: string[];
@@ -89,6 +90,10 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
         throw new Error(data.error);
       }
       if (!r.ok) throw new Error(data.error);
+      if ((data.candidateCount ?? 0) > 0) {
+        window.location.href = '/detected';
+        return;
+      }
       setResult(data);
     } catch (e) {
       setError((e as Error).message);
@@ -114,13 +119,37 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
       )}
       <ol className="import-steps" aria-label="Этапы импорта">
         <li aria-current={!file ? 'step' : undefined}>
-          <span>1</span>Выберите выписку
+          <span>1</span>
+          <div>
+            <strong>Загрузка</strong>
+            <small>{file ? 'Выписка загружена' : 'Выберите файл'}</small>
+          </div>
         </li>
-        <li aria-current={file && !result ? 'step' : undefined}>
-          <span>2</span>Запустите анализ
+        <li aria-current={file && !pdfPreview && !result ? 'step' : undefined}>
+          <span>2</span>
+          <div>
+            <strong>Распознавание</strong>
+            <small>
+              {pdfPreview
+                ? `${pdfPreview.rows.length} операций найдено`
+                : result
+                  ? `${result.analyzedCount} операций найдено`
+                  : file
+                    ? 'Готово к распознаванию'
+                    : 'Ожидает загрузки'}
+            </small>
+          </div>
         </li>
-        <li aria-current={result ? 'step' : undefined}>
-          <span>3</span>Проверьте расходы
+        <li aria-current={pdfPreview || result ? 'step' : undefined}>
+          <span>3</span>
+          <div>
+            <strong>Результат</strong>
+            <small>
+              {result
+                ? `${result.candidateCount ?? 0} регулярных расходов найдено`
+                : 'Ожидает анализа'}
+            </small>
+          </div>
         </li>
       </ol>
       <div className="import-layout import-focused">
@@ -128,43 +157,34 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
           {result ? (
             <div className="import-success">
               <CheckCircle2 size={44} />
-              <h2>Выписка обработана</h2>
+              <h2>Регулярные расходы не найдены</h2>
               <p>
-                {result.transactionCount} операций {'добавлено'} ·{' '}
-                {result.skippedCount} пропущено
+                Мы проанализировали {result.analyzedCount} операций, но не нашли
+                достаточно уверенных повторяющихся платежей.
               </p>
-              {result.candidateCount !== undefined && (
-                <p>
-                  Найдено возможных расходов:{' '}
-                  <strong>{result.candidateCount}</strong>
-                </p>
-              )}
               {result.warnings.length > 0 && (
                 <details>
-                  <summary>
-                    Замечания к данным ({result.warnings.length})
-                  </summary>
+                  <summary>Подробнее о распознавании</summary>
                   {result.warnings.map((w, i) => (
                     <p key={i}>{w}</p>
                   ))}
                 </details>
               )}
-              {
-                <a className="primary-button" href="/detected">
-                  Проверить найденные расходы
-                  <ArrowRight size={17} />
+              <div className="empty-actions">
+                <button
+                  className="primary-button"
+                  onClick={() => {
+                    setResult(null);
+                    setFile(null);
+                    setPdfPreview(null);
+                  }}
+                >
+                  Загрузить выписку за больший период
+                </button>
+                <a className="secondary-button" href="/expenses">
+                  Добавить расход вручную
                 </a>
-              }
-              <button
-                className="text-link"
-                onClick={() => {
-                  setResult(null);
-                  setFile(null);
-                  setPdfPreview(null);
-                }}
-              >
-                Загрузить ещё одну выписку
-              </button>
+              </div>
             </div>
           ) : busy ? (
             <div className="processing" role="status" aria-live="polite">

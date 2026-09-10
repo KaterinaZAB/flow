@@ -1,6 +1,8 @@
 import { getDocumentProxy } from 'unpdf';
 import { parseMinor } from '../domain/money.ts';
 import { amountDirection, normalizeAmountSign } from './direction.ts';
+import { currencies } from '../domain/types.ts';
+import { validDate } from '../domain/validation.ts';
 export type PdfRow = {
   id: string;
   date: string;
@@ -13,12 +15,31 @@ export type PdfRow = {
 export type PdfPreview = {
   rows: PdfRow[];
   totalPages: number;
+  skippedRows: number;
+  emptyPages: number;
   warnings: string[];
 };
 export type PdfCell = { text: string; x: number; y: number; width: number };
 const datePattern = /\b(\d{2}[./]\d{2}[./]\d{4}|\d{4}-\d{2}-\d{2})\b/;
 const moneyPattern =
   /(?<![\d.,])([+−–—﹣－＋-]?\s*(?:\d{1,3}(?:[ \u00a0\u202f]\d{3})+|\d+)[.,]\d{2})(?![\d.,])/g;
+const bankCategoryOnly =
+  /^(?:транспорт|путешествия|рестораны|кафе|супермаркеты|продукты|развлечения|здоровье|красота|одежда|прочее|переводы|transport|travel|restaurants?|groceries|entertainment|other)$/i;
+export function pdfRowReviewReason(row: PdfRow): string | null {
+  if (row.direction === 'unknown') return 'Не определено направление операции';
+  if (!validDate(row.date)) return 'Нужно уточнить дату';
+  if (row.merchant.trim().length < 2) return 'Не найдено описание получателя';
+  if (bankCategoryOnly.test(row.merchant.trim()))
+    return 'Найдена категория банка вместо получателя';
+  try {
+    if (!parseMinor(row.amount)) return 'Нужно уточнить сумму';
+  } catch {
+    return 'Нужно уточнить сумму';
+  }
+  if (!currencies.includes(row.currency.toUpperCase() as never))
+    return 'Нужно уточнить валюту';
+  return null;
+}
 function linesFromCells(cells: PdfCell[]) {
   const groups: { y: number; cells: PdfCell[] }[] = [];
   for (const cell of cells
@@ -59,6 +80,7 @@ export function parsePdfPage(
     creditX: number | undefined,
     amountX: number | undefined,
     balanceX: number | undefined,
+    categoryX: number | undefined,
     merchantX: number | undefined;
   for (const line of lines) {
     if (datePattern.test(line.text) || moneyPattern.test(line.text)) {
@@ -71,6 +93,7 @@ export function parsePdfPage(
       if (/расход|списан|дебет|debit/.test(t)) debitX = c.x;
       if (/приход|зачислен|кредит|credit/.test(t)) creditX = c.x;
       if (/остаток|баланс|balance/.test(t)) balanceX = c.x;
+      if (/^категори[яи]|^category/.test(t)) categoryX = c.x;
       if (/описание|назначение|получатель|description|merchant/.test(t))
         merchantX = c.x;
       if (/сумма.*(?:счет|счёт|руб)|amount|сумма операции/.test(t))
@@ -169,8 +192,10 @@ export function parsePdfPage(
           c.x < merchantX + 170
         )
           return true;
+        if (merchantX !== undefined) return false;
         return (
           !datePattern.test(c.text) &&
+          (categoryX === undefined || Math.abs(c.x - categoryX) >= 70) &&
           !/^[-−+\d\s.,:₽$€]+$/.test(c.text.trim()) &&
           !/^(RUB|RUR|USD|EUR|₽)$/i.test(c.text.trim())
         );
@@ -207,15 +232,17 @@ export function parsePdfPage(
       matchedCurrency === 'RUR'
         ? 'RUB'
         : (matchedCurrency ?? (block.text.includes('₽') ? 'RUB' : currency));
-    result.push({
+    const row: PdfRow = {
       id: 'p' + page + '-' + result.length,
       date: block.date,
       merchant,
       amount: chosen.amount,
       currency: curr,
       direction: chosen.direction,
-      selected: chosen.direction === 'expense',
-    });
+      selected: false,
+    };
+    row.selected = row.direction === 'expense' && !pdfRowReviewReason(row);
+    result.push(row);
   }
   return { rows: result, skipped };
 }
@@ -312,7 +339,13 @@ export async function extractPdf(
           emptyPages +
           ' страницах почти нет текста; данные с них могли не распознаться.',
       );
-    return { rows, totalPages: pdf.numPages, warnings };
+    return {
+      rows,
+      totalPages: pdf.numPages,
+      skippedRows: skipped,
+      emptyPages,
+      warnings,
+    };
   } finally {
     await pdf.loadingTask.destroy();
   }

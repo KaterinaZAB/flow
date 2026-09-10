@@ -1,5 +1,10 @@
 'use client';
-import type { PdfPreview, PdfRow } from '@/lib/import/pdf';
+import { useState } from 'react';
+import {
+  pdfRowReviewReason,
+  type PdfPreview,
+  type PdfRow,
+} from '@/lib/import/pdf';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { SelectField } from './select-field';
@@ -11,7 +16,8 @@ import {
   TableRow,
   TableCell,
 } from '@/components/ui/table';
-import { ArrowRight, FileCheck2 } from 'lucide-react';
+import { ArrowRight, ChevronDown, FileCheck2, Search } from 'lucide-react';
+
 export function PdfReview({
   preview,
   onChange,
@@ -25,166 +31,251 @@ export function PdfReview({
   onBack: () => void;
   busy: boolean;
 }) {
-  const selected = preview.rows.filter((r) => r.selected);
-  const unresolved = selected.some((r) => r.direction === 'unknown');
-  function edit(id: string, change: Partial<PdfRow>) {
-    onChange(preview.rows.map((r) => (r.id === id ? { ...r, ...change } : r)));
-  }
+  const [showRows, setShowRows] = useState(false);
+  const [reviewOnly, setReviewOnly] = useState(false);
+  const selected = preview.rows.filter((row) => row.selected);
+  const reviewRows = preview.rows.filter((row) => pdfRowReviewReason(row));
+  const reviewCount = reviewRows.length + preview.skippedRows;
+  const unresolved = selected.some((row) => pdfRowReviewReason(row));
+  const visibleRows = reviewOnly ? reviewRows : preview.rows;
+  const edit = (id: string, change: Partial<PdfRow>) =>
+    onChange(
+      preview.rows.map((row) => (row.id === id ? { ...row, ...change } : row)),
+    );
+  const openRows = (onlyReview = false) => {
+    setReviewOnly(onlyReview);
+    setShowRows(true);
+  };
+
   return (
     <div className="pdf-review">
       <div className="pdf-review-heading">
-        <FileCheck2 size={25} />
+        <FileCheck2 size={27} />
         <div>
-          <h2>Проверьте операции из PDF</h2>
+          <h2>Мы распознали операции</h2>
           <p>
-            {preview.totalPages} стр. · {preview.rows.length} строк распознано
+            Нашли {preview.rows.length} операций. Вы можете проверить результат
+            или сразу продолжить — сомнительные строки мы не будем учитывать
+            автоматически.
           </p>
         </div>
       </div>
-      <div className="pdf-review-warnings">
-        {preview.warnings.map((w, i) => (
-          <p key={i}>{w}</p>
-        ))}
+
+      <div className="recognition-summary" aria-label="Результат распознавания">
+        <div>
+          <strong>{preview.rows.length}</strong>
+          <span>операций найдено</span>
+        </div>
+        <div>
+          <strong>{reviewCount}</strong>
+          <span>требуют проверки</span>
+        </div>
+        <div>
+          <strong>{preview.totalPages}</strong>
+          <span>страниц обработано</span>
+        </div>
       </div>
-      <label className="pdf-select">
-        <Checkbox
-          checked={
-            preview.rows.some((r) => r.direction === 'expense') &&
-            preview.rows
-              .filter((r) => r.direction === 'expense')
-              .every((r) => r.selected)
-          }
-          onCheckedChange={(v) =>
-            onChange(
-              preview.rows.map((r) => ({
-                ...r,
-                selected: !!v && r.direction === 'expense',
-              })),
-            )
-          }
-        />
-        Выбрать все распознанные расходы
-      </label>
-      {preview.rows.some((r) => r.direction === 'unknown') && (
-        <button
-          className="secondary-button mb-4"
-          onClick={() =>
-            onChange(
-              preview.rows.map((r) =>
-                r.direction === 'unknown'
-                  ? { ...r, direction: 'expense', selected: true }
-                  : r,
-              ),
-            )
-          }
-        >
-          Неясные строки — это расходы
-        </button>
+
+      {reviewCount > 0 && (
+        <div className="review-notice">
+          <div>
+            <strong>Есть операции, которые стоит проверить</strong>
+            <p>
+              {reviewCount} строк требуют дополнительной проверки. Они не будут
+              учтены автоматически.
+            </p>
+          </div>
+          {reviewRows.length > 0 && (
+            <button className="text-link" onClick={() => openRows(true)}>
+              Проверить
+            </button>
+          )}
+        </div>
       )}
-      <div className="pdf-table">
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>
-                <span className="sr-only">Выбрать</span>
-              </TableHead>
-              <TableHead>Дата</TableHead>
-              <TableHead>Описание</TableHead>
-              <TableHead>Сумма</TableHead>
-              <TableHead>Валюта</TableHead>
-              <TableHead>Направление</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {preview.rows.map((r) => (
-              <TableRow key={r.id}>
-                <TableCell>
-                  <Checkbox
-                    checked={r.selected}
-                    aria-label={'Импортировать ' + r.merchant}
-                    onCheckedChange={(v) => edit(r.id, { selected: !!v })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    type="date"
-                    aria-label="Дата операции"
-                    value={r.date}
-                    onChange={(e) => edit(r.id, { date: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    aria-label="Описание операции"
-                    value={r.merchant}
-                    maxLength={240}
-                    onChange={(e) => edit(r.id, { merchant: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    aria-label="Сумма операции"
-                    inputMode="decimal"
-                    value={r.amount}
-                    onChange={(e) => edit(r.id, { amount: e.target.value })}
-                  />
-                </TableCell>
-                <TableCell>
-                  <Input
-                    aria-label="Валюта операции"
-                    value={r.currency}
-                    maxLength={3}
-                    onChange={(e) =>
-                      edit(r.id, { currency: e.target.value.toUpperCase() })
-                    }
-                  />
-                </TableCell>
-                <TableCell>
-                  <SelectField
-                    label="Направление операции"
-                    value={r.direction}
-                    onChange={(v) =>
-                      edit(r.id, {
-                        direction: v as PdfRow['direction'],
-                        selected: v === 'expense',
-                      })
-                    }
-                    options={[
-                      { value: 'unknown', label: 'Уточните' },
-                      { value: 'expense', label: 'Расход' },
-                      { value: 'income', label: 'Пополнение' },
-                    ]}
-                  />
-                </TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
-      <div className="pdf-review-footer">
-        <button className="secondary-button" onClick={onBack}>
-          Другой файл
-        </button>
+
+      <div className="recognition-actions">
         <button
           className="primary-button"
           disabled={busy || !selected.length || unresolved}
           onClick={onSubmit}
         >
-          {busy
-            ? 'Импортируем…'
-            : 'Найти регулярные расходы (' + selected.length + ')'}
-          <ArrowRight size={16} />
+          {busy ? 'Ищем расходы…' : 'Найти регулярные расходы'}{' '}
+          <ArrowRight size={18} />
+        </button>
+        <button className="secondary-button" onClick={() => openRows(false)}>
+          <Search size={17} />
+          Посмотреть распознанные операции
+        </button>
+        <button className="text-link" onClick={onBack}>
+          Выбрать другой файл
         </button>
       </div>
-      {unresolved && (
-        <p className="error-box">
-          Укажите направление у всех выбранных операций.
+
+      {!selected.length && (
+        <p className="quiet-note">
+          Уверенно распознанных расходов пока нет. Проверьте строки вручную или
+          выберите другой файл.
         </p>
       )}
-      <p className="import-hint">
-        Пополнения не учитываются в расходах. После этого шага вы отдельно
-        подтвердите найденные регулярные платежи.
-      </p>
+
+      {showRows && (
+        <section className="recognized-rows" aria-label="Распознанные операции">
+          <div className="recognized-rows-heading">
+            <div>
+              <h3>
+                {reviewOnly ? 'Операции для проверки' : 'Распознанные операции'}
+              </h3>
+              <p>
+                Измените данные или снимите отметку, чтобы исключить операцию.
+              </p>
+            </div>
+            <button className="text-link" onClick={() => setShowRows(false)}>
+              Скрыть
+            </button>
+          </div>
+          {!reviewOnly && (
+            <label className="pdf-select">
+              <Checkbox
+                checked={
+                  preview.rows.some(
+                    (row) =>
+                      row.direction === 'expense' && !pdfRowReviewReason(row),
+                  ) &&
+                  preview.rows
+                    .filter(
+                      (row) =>
+                        row.direction === 'expense' && !pdfRowReviewReason(row),
+                    )
+                    .every((row) => row.selected)
+                }
+                onCheckedChange={(checked) =>
+                  onChange(
+                    preview.rows.map((row) => ({
+                      ...row,
+                      selected:
+                        !!checked &&
+                        row.direction === 'expense' &&
+                        !pdfRowReviewReason(row),
+                    })),
+                  )
+                }
+              />
+              Выбрать все уверенно распознанные расходы
+            </label>
+          )}
+          <div className="pdf-table">
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>
+                    <span className="sr-only">Выбрать</span>
+                  </TableHead>
+                  <TableHead>Дата</TableHead>
+                  <TableHead>Описание</TableHead>
+                  <TableHead>Сумма</TableHead>
+                  <TableHead>Валюта</TableHead>
+                  <TableHead>Направление</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {visibleRows.map((row) => (
+                  <TableRow key={row.id}>
+                    <TableCell>
+                      <Checkbox
+                        checked={row.selected}
+                        aria-label={'Учитывать ' + row.merchant}
+                        onCheckedChange={(checked) =>
+                          edit(row.id, { selected: !!checked })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        type="date"
+                        aria-label="Дата операции"
+                        value={row.date}
+                        onChange={(event) =>
+                          edit(row.id, { date: event.target.value })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        aria-label="Описание операции"
+                        value={row.merchant}
+                        maxLength={240}
+                        onChange={(event) =>
+                          edit(row.id, { merchant: event.target.value })
+                        }
+                      />
+                      {pdfRowReviewReason(row) && (
+                        <small className="row-review-reason">
+                          {pdfRowReviewReason(row)}
+                        </small>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        aria-label="Сумма операции"
+                        inputMode="decimal"
+                        value={row.amount}
+                        onChange={(event) =>
+                          edit(row.id, { amount: event.target.value })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <Input
+                        aria-label="Валюта операции"
+                        value={row.currency}
+                        maxLength={3}
+                        onChange={(event) =>
+                          edit(row.id, {
+                            currency: event.target.value.toUpperCase(),
+                          })
+                        }
+                      />
+                    </TableCell>
+                    <TableCell>
+                      <SelectField
+                        label="Направление операции"
+                        value={row.direction}
+                        onChange={(value) => {
+                          const direction = value as PdfRow['direction'];
+                          edit(row.id, {
+                            direction,
+                            selected:
+                              direction === 'expense' &&
+                              !pdfRowReviewReason({ ...row, direction }),
+                          });
+                        }}
+                        options={[
+                          { value: 'unknown', label: 'Уточните' },
+                          { value: 'expense', label: 'Расход' },
+                          { value: 'income', label: 'Пополнение' },
+                        ]}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </div>
+        </section>
+      )}
+
+      <details className="recognition-details">
+        <summary>
+          Подробнее о распознавании <ChevronDown size={15} />
+        </summary>
+        <p>
+          Пополнения и исключённые строки не участвуют в поиске регулярных
+          расходов.
+        </p>
+        {preview.warnings.map((warning, index) => (
+          <p key={index}>{warning}</p>
+        ))}
+      </details>
     </div>
   );
 }
