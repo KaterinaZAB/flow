@@ -377,10 +377,10 @@ p {
   gap: var(--space-6);
 }
 .import-panel {
-  padding: var(--space-6);
+  padding: 0;
+  background: transparent;
 }
 .dropzone.drag {
-  background: var(--card);
   border-color: var(--border);
 }
 .dropzone h2 {
@@ -2468,13 +2468,12 @@ input[type='radio'] {
   text-align: center;
   padding: var(--space-10) var(--space-4) var(--space-8);
   transition: 0.15s;
-  background: var(--card);
+  background: transparent;
   border: 1px dashed var(--text-secondary);
   border-radius: var(--r-card);
 }
 .dropzone:hover,
 .dropzone.dragging {
-  background: var(--accent-surface);
   border-color: var(--primary);
 }
 .candidate-history {
@@ -2737,7 +2736,7 @@ input[type='radio'] {
 }
 @media (max-width: 767px) {
   .import-panel {
-    padding: var(--space-4);
+    padding: 0;
   }
   .dropzone {
     padding: var(--space-8) 12px;
