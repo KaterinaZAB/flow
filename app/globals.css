@@ -1790,6 +1790,60 @@ input[type='radio'] {
   gap: var(--space-2);
   font-size: 0.8125rem;
 }
+.month-switcher {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border: 1px solid var(--border);
+  border-radius: var(--r-pill);
+  background: var(--surface-raised);
+}
+.month-switcher button {
+  display: grid;
+  place-items: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  color: var(--text-secondary);
+}
+.month-switcher button:hover {
+  color: var(--foreground);
+  background: var(--card);
+}
+.month-switcher button:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 1px;
+}
+.month-switcher .date-chip {
+  border: 0;
+  background: transparent;
+  min-width: 145px;
+  justify-content: center;
+}
+.expense-sheet {
+  width: min(680px, calc(100% - 24px));
+  margin-inline: auto;
+  max-height: min(88dvh, 860px);
+  overflow-y: auto;
+  padding: var(--space-8);
+  border: 1px solid var(--border);
+  border-bottom: 0;
+  border-radius: var(--r-card) var(--r-card) 0 0;
+}
+.expense-sheet-header {
+  padding: 0 0 var(--space-5);
+}
+@media (max-width: 767px) {
+  .expense-sheet {
+    width: 100%;
+    max-height: 92dvh;
+    padding: var(--space-6) var(--space-4);
+  }
+  .month-switcher .date-chip {
+    min-width: 125px;
+  }
+}
 .expense-delete-section {
   margin-top: var(--space-8);
   padding: var(--space-6) 0;

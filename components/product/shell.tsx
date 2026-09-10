@@ -25,8 +25,8 @@ const navigation = [
   {
     key: 'overview',
     href: '/',
-    label: 'Обзор',
-    short: 'Обзор',
+    label: 'Главная',
+    short: 'Главная',
     icon: LayoutDashboard,
   },
   {

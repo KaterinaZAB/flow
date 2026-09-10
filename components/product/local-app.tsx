@@ -9,13 +9,12 @@ import { CandidateList } from './candidate-list';
 import { RecommendationsPage } from './recommendations';
 import { LocalDetail } from './local-detail';
 import { LocalSettings } from './local-settings';
-import { updateWorkspace } from '@/lib/local/repository';
 import { projectDashboard } from '@/lib/domain/projections';
-import { demoExpenses, demoTransactions } from '@/lib/demo/data';
+import { today } from '@/lib/domain/calendar';
 import { useLocalWorkspace } from '@/hooks/use-local-workspace';
 export function LocalApp() {
-  const { state, path, error, setError, status } = useLocalWorkspace();
-  const [demo, setDemo] = useState(false);
+  const { state, path, error, status } = useLocalWorkspace();
+  const [dashboardDate, setDashboardDate] = useState(today());
   const active = path.startsWith('/expenses')
     ? 'expenses'
     : path === '/import' || path === '/detected'
@@ -41,15 +40,7 @@ export function LocalApp() {
         )}
       </Shell>
     );
-  const data = demo
-    ? {
-        ...state,
-        expenses: demoExpenses,
-        transactions: demoTransactions,
-        candidates: [],
-      }
-    : state;
-  const pending = data.candidates.filter((c) => c.decision === 'pending');
+  const pending = state.candidates.filter((c) => c.decision === 'pending');
   return (
     <Shell active={active}>
       {['error', 'conflict'].includes(status) && (
@@ -60,36 +51,6 @@ export function LocalApp() {
           <a href="/settings/sync">Хранение и синхронизация</a>
         </p>
       )}
-      {!state.started && active === 'overview' && (
-        <section className="panel settings-panel">
-          <h1>Регулярные расходы под контролем</h1>
-          <p>Начните на этом устройстве или восстановите сохранённый сейф.</p>
-          <div className="page-actions">
-            <button
-              className="primary-button"
-              onClick={() =>
-                void updateWorkspace((s) => {
-                  s.started = true;
-                }).catch((e) => setError(e.message))
-              }
-            >
-              Начать
-            </button>
-            <a className="secondary-button" href="/settings/sync">
-              Восстановить данные
-            </a>
-            <button className="text-link" onClick={() => setDemo(!demo)}>
-              {demo ? 'Закрыть пример' : 'Посмотреть пример'}
-            </button>
-          </div>
-        </section>
-      )}
-      {demo && (
-        <p className="source-notice">
-          Пример · Вымышленные расходы не сохраняются.{' '}
-          <button onClick={() => setDemo(false)}>Закрыть пример</button>
-        </p>
-      )}
       {error && (
         <p className="error-box" role="alert">
           {error}
@@ -98,13 +59,13 @@ export function LocalApp() {
       {active === 'overview' && (
         <Dashboard
           projection={projectDashboard(
-            data.expenses,
-            data.transactions,
-            undefined,
+            state.expenses,
+            state.transactions,
+            dashboardDate,
             state.settings.baseCurrency,
           )}
           pending={pending.length}
-          guest={demo}
+          onDateChange={setDashboardDate}
         />
       )}
       {path === '/expenses' && (

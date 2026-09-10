@@ -2,12 +2,11 @@
 import { localCommand } from '@/lib/local/actions';
 import { useState, type SyntheticEvent } from 'react';
 import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-} from '@/components/ui/dialog';
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
 import { Input } from '@/components/ui/input';
 import { SelectField } from './select-field';
 import {
@@ -102,16 +101,13 @@ export function ExpenseForm({
           {buttonLabel ?? (expense ? 'Редактировать' : 'Добавить расход')}
         </span>
       </button>
-      <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="sm:max-w-[520px] p-7 max-h-[90dvh] overflow-auto">
-          <DialogHeader>
-            <DialogTitle className="text-xl">
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent side="bottom" className="expense-sheet">
+          <SheetHeader className="expense-sheet-header">
+            <SheetTitle className="text-xl">
               {expense ? 'Редактировать расход' : 'Новый регулярный расход'}
-            </DialogTitle>
-            <DialogDescription>
-              Добавьте то, что ещё не нашлось в выписке.
-            </DialogDescription>
-          </DialogHeader>
+            </SheetTitle>
+          </SheetHeader>
           <form onSubmit={submit}>
             <div className="form-grid">
               <div className="form-field full">
@@ -261,8 +257,8 @@ export function ExpenseForm({
               </button>
             </div>
           </form>
-        </DialogContent>
-      </Dialog>
+        </SheetContent>
+      </Sheet>
     </>
   );
 }

@@ -7,10 +7,11 @@ import {
   ArrowRight,
   ArrowUpRight,
   CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Repeat2,
   House,
   UploadCloud,
-  ChevronRight,
   Info,
   Wallet,
   ChartNoAxesCombined,
@@ -24,16 +25,27 @@ const colors = Array.from({ length: 7 }, (_, i) => `var(--chart-${i + 1})`);
 export function Dashboard({
   projection,
   pending,
-  guest = false,
+  onDateChange,
 }: {
   projection: DashboardProjection;
   pending: number;
-  guest?: boolean;
+  onDateChange: (date: string) => void;
 }) {
   const options = projection.currencies;
   const [currency, setCurrency] = useState(options[0] ?? 'RUB');
   const data = projection.byCurrency[currency];
   const asOf = projection.asOf;
+  const shiftMonth = (delta: number) => {
+    const current = new Date(asOf + 'T00:00:00Z');
+    const target = new Date(
+      Date.UTC(current.getUTCFullYear(), current.getUTCMonth() + delta, 1),
+    );
+    const lastDay = new Date(
+      Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0),
+    ).getUTCDate();
+    target.setUTCDate(Math.min(current.getUTCDate(), lastDay));
+    onDateChange(target.toISOString().slice(0, 10));
+  };
   const gradient = data.categories
     .map((c, i) => {
       const from =
@@ -54,14 +66,30 @@ export function Dashboard({
           <p>Всё, что предстоит оплатить — в одном месте.</p>
         </div>
         <div className="page-actions">
-          <span className="date-chip">
-            <CalendarDays size={16} />
-            {new Date(asOf + 'T00:00:00Z').toLocaleDateString('ru-RU', {
-              month: 'long',
-              year: 'numeric',
-              timeZone: 'UTC',
-            })}
-          </span>
+          <div className="month-switcher" aria-label="Месяц обзора">
+            <button
+              type="button"
+              onClick={() => shiftMonth(-1)}
+              aria-label="Предыдущий месяц"
+            >
+              <ChevronLeft size={17} />
+            </button>
+            <span className="date-chip">
+              <CalendarDays size={16} />
+              {new Date(asOf + 'T00:00:00Z').toLocaleDateString('ru-RU', {
+                month: 'long',
+                year: 'numeric',
+                timeZone: 'UTC',
+              })}
+            </span>
+            <button
+              type="button"
+              onClick={() => shiftMonth(1)}
+              aria-label="Следующий месяц"
+            >
+              <ChevronRight size={17} />
+            </button>
+          </div>
           {options.length > 1 && (
             <SelectField
               label="Валюта обзора"
@@ -71,7 +99,7 @@ export function Dashboard({
             />
           )}
           <div className="overview-add-desktop">
-            <ExpenseForm buttonLabel="Добавить" guest={guest} />
+            <ExpenseForm buttonLabel="Добавить" />
           </div>
         </div>
       </div>

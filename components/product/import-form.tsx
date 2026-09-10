@@ -100,7 +100,6 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
     <>
       <div className="page-heading">
         <div>
-          <div className="eyebrow">МЕНЬШЕ РУЧНОЙ РАБОТЫ</div>
           <h1>Найдём регулярные расходы автоматически</h1>
           <p>
             Загрузите выписку по счёту карты — подойдёт даже один месяц. Мы
