@@ -52,4 +52,22 @@ test('reviewed PDF import creates known-subscription candidates in local storage
   const workspace = await readWorkspace();
   assert.equal(workspace.candidates.length, 1);
   assert.equal(workspace.candidates[0].expense.serviceId, 'yandex-plus');
+
+  const repeatedResponse = await localCommand('/imports', {
+    method: 'POST',
+    body: importForm,
+  });
+  const repeated = (await repeatedResponse.json()) as {
+    candidateCount: number;
+  };
+  assert.equal(repeated.candidateCount, 1);
+  const repeatedWorkspace = await readWorkspace();
+  assert.equal(repeatedWorkspace.transactions.length, 2);
+  assert.equal(repeatedWorkspace.candidates.length, 1);
+  assert.equal(
+    repeatedWorkspace.transactions.some((transaction) =>
+      repeatedWorkspace.candidates[0].transactionIds.includes(transaction.id),
+    ),
+    true,
+  );
 });

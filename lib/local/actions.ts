@@ -111,6 +111,18 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         );
         added = fresh.length;
         state.transactions.push(...fresh);
+        const persistedByFingerprint = new Map(
+          state.transactions.map((transaction) => [
+            transaction.fingerprint + ':' + transaction.occurrence,
+            transaction,
+          ]),
+        );
+        const importedRows = result.transactions.flatMap((transaction) => {
+          const persisted = persistedByFingerprint.get(
+            transaction.fingerprint + ':' + transaction.occurrence,
+          );
+          return persisted ? [persisted] : [];
+        });
         // Detect across imports, but retain confirmed/rejected decisions and avoid linked evidence.
         const used = new Set(
           state.candidates
@@ -123,12 +135,15 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         const eligible = state.transactions.filter(
           (t) => !t.recurringExpenseId && !used.has(t.id),
         );
-        // Run the just-parsed operations independently as well. Existing local
-        // history can contain old imported rows or dismissed candidates, but it
-        // must never hide a newly found known subscription from this import.
+        // Run this import independently as well. Existing local history can
+        // contain old imported rows or dismissed candidates, but it must never
+        // hide a newly found known subscription. On a repeated upload these
+        // are the persisted rows, so a candidate still links to real evidence.
         const detected = [
           ...detectRecurring(eligible, id, today()),
-          ...(fresh.length ? detectRecurring(fresh, id, today()) : []),
+          ...(importedRows.length
+            ? detectRecurring(importedRows, id, today())
+            : []),
         ].filter((candidate, index, all) => {
           const key = [
             candidate.expense.serviceId ?? candidate.expense.name.toLowerCase(),
