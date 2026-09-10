@@ -3,6 +3,9 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { localCommand, type ImportOutcome } from '../lib/local/actions.ts';
 import { clearWorkspace, readWorkspace } from '../lib/local/repository.ts';
+import { detectRecurring } from '../lib/domain/detection.ts';
+import { normalizeMerchant } from '../lib/domain/catalog.ts';
+import type { Transaction } from '../lib/domain/types.ts';
 import { makePdf } from './pdf-fixture.ts';
 
 test('reviewed PDF import creates known-subscription candidates in local storage', async () => {
@@ -156,4 +159,66 @@ test('reviewed PDF import creates known-subscription candidates in local storage
     }),
   });
   assert.equal((await readWorkspace()).candidates[0].decision, 'pending');
+});
+
+test('import guarantees a pending known subscription when recurring detection is empty', async () => {
+  await clearWorkspace();
+  const importId = crypto.randomUUID();
+  const merchants = [
+    'YANDEX*1111*PLUS MOSCOW RUS',
+    'YANDEX*2222*PLUS MOSCOW RUS',
+  ];
+  const dates = ['2026-01-01', '2026-03-17'];
+  const detectorInput: Transaction[] = merchants.map((merchant, index) => ({
+    id: crypto.randomUUID(),
+    originalMerchant: merchant,
+    normalizedMerchant: normalizeMerchant(merchant),
+    amountMinor: 24900,
+    currency: 'RUB',
+    paidAt: dates[index],
+    recurringExpenseId: null,
+    sourceImportId: importId,
+    fingerprint: 'irregular-yandex-' + index,
+    occurrence: 0,
+  }));
+  assert.deepEqual(detectRecurring(detectorInput, importId, '2026-03-18'), []);
+
+  const csv = [
+    'Дата,Описание,Сумма',
+    '01.01.2026,YANDEX*1111*PLUS MOSCOW RUS,249.00',
+    '17.03.2026,YANDEX*2222*PLUS MOSCOW RUS,249.00',
+  ].join('\n');
+  const form = new FormData();
+  form.set(
+    'file',
+    new File([csv], 'irregular-known-subscription.csv', { type: 'text/csv' }),
+  );
+  form.set('currency', 'RUB');
+  const response = await localCommand('/imports', {
+    method: 'POST',
+    body: form,
+  });
+  assert.equal(response.ok, true);
+  const result = (await response.json()) as {
+    candidateCount: number;
+    outcomes: ImportOutcome[];
+  };
+  const workspace = await readWorkspace();
+  const pending = workspace.candidates.filter(
+    (candidate) =>
+      candidate.decision === 'pending' &&
+      candidate.expense.serviceId === 'yandex-plus' &&
+      candidate.expense.amountMinor === 24900,
+  );
+
+  assert.equal(result.candidateCount, 1);
+  assert.equal(pending.length, 1);
+  assert.equal(pending[0].transactionIds.length, 2);
+  assert.ok(
+    result.outcomes.some(
+      (outcome) =>
+        outcome.kind === 'new_candidate' &&
+        outcome.candidate.id === pending[0].id,
+    ),
+  );
 });

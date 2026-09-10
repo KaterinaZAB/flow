@@ -6,6 +6,10 @@ import { detectRecurring } from '../domain/detection.ts';
 import { today } from '../domain/calendar.ts';
 import { findService } from '../domain/catalog.ts';
 import type { Candidate } from '../domain/types.ts';
+import {
+  createKnownSubscriptionCandidate,
+  isKnownSubscription,
+} from '../domain/known-subscription.ts';
 
 export type ImportOutcome =
   | { kind: 'new_candidate'; candidate: Candidate }
@@ -44,6 +48,20 @@ function uniqueCandidates(candidates: Candidate[]) {
           sameEvidence(other, candidate),
       ) === index,
   );
+}
+
+function importOutcomeKey(outcome: ImportOutcome, serviceId: string) {
+  switch (outcome.kind) {
+    case 'new_candidate':
+      return outcome.kind + ':' + outcome.candidate.id;
+    case 'pending_candidate':
+    case 'previously_rejected':
+      return outcome.kind + ':' + outcome.candidateId;
+    case 'confirmed_expense':
+      return outcome.kind + ':' + outcome.expenseId;
+    case 'not_recurring':
+      return outcome.kind + ':' + serviceId;
+  }
 }
 /** Local command adapter for existing forms. Response objects are in-memory results, never HTTP requests. */
 export async function localCommand(path: string, options: RequestInit = {}) {
@@ -217,22 +235,11 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         const outcomeByKey = new Map<string, ImportOutcome>();
         for (const transaction of importedRows) {
           const service = findService(transaction.originalMerchant);
-          if (
-            !service ||
-            (service.merchantClass !== 'subscription' &&
-              service.category !== 'subscription')
-          )
-            continue;
+          if (!service || !isKnownSubscription(service)) continue;
           const matching = (candidate: Candidate) =>
             candidate.expense.serviceId === service.id &&
             candidate.expense.amountMinor === transaction.amountMinor &&
             candidate.expense.currency === transaction.currency;
-          const pending = state.candidates.find(
-            (candidate) =>
-              candidate.decision === 'pending' &&
-              matching(candidate) &&
-              candidate.transactionIds.includes(transaction.id),
-          );
           const confirmed = state.candidates.find(
             (candidate) =>
               candidate.decision === 'confirmed' && matching(candidate),
@@ -249,37 +256,48 @@ export async function localCommand(path: string, options: RequestInit = {}) {
             (candidate) =>
               candidate.decision === 'rejected' && matching(candidate),
           );
-          const outcome = pending
-            ? newCandidateIds.has(pending.id)
-              ? ({ kind: 'new_candidate', candidate: pending } as const)
-              : ({
-                  kind: 'pending_candidate',
-                  candidateId: pending.id,
-                } as const)
-            : expense || confirmed
-              ? {
-                  kind: 'confirmed_expense' as const,
-                  expenseId: expense?.id ?? confirmed!.expense.id,
-                  expenseName: expense?.name ?? confirmed!.expense.name,
-                }
-              : rejected
-                ? {
-                    kind: 'previously_rejected' as const,
-                    candidateId: rejected.id,
-                    expenseName: rejected.expense.name,
-                  }
-                : ({ kind: 'not_recurring' } as const);
-          const key =
-            outcome.kind === 'new_candidate'
-              ? outcome.kind + ':' + outcome.candidate.id
-              : outcome.kind === 'pending_candidate'
-                ? outcome.kind + ':' + outcome.candidateId
-                : outcome.kind === 'confirmed_expense'
-                  ? outcome.kind + ':' + outcome.expenseId
-                  : outcome.kind === 'previously_rejected'
-                    ? outcome.kind + ':' + outcome.candidateId
-                    : outcome.kind + ':' + service.id;
-          outcomeByKey.set(key, outcome);
+          let outcome: ImportOutcome;
+          if (expense || confirmed) {
+            outcome = {
+              kind: 'confirmed_expense' as const,
+              expenseId: expense?.id ?? confirmed!.expense.id,
+              expenseName: expense?.name ?? confirmed!.expense.name,
+            };
+          } else if (rejected) {
+            outcome = {
+              kind: 'previously_rejected',
+              candidateId: rejected.id,
+              expenseName: rejected.expense.name,
+            };
+          } else {
+            let pending = state.candidates.find(
+              (candidate) =>
+                candidate.decision === 'pending' && matching(candidate),
+            );
+            let createdKnownCandidate = false;
+            if (!pending) {
+              pending = createKnownSubscriptionCandidate({
+                transaction,
+                service,
+                importId: id,
+                asOf: today(),
+              });
+              state.candidates.push(pending);
+              newCandidateIds.add(pending.id);
+              count += 1;
+              createdKnownCandidate = true;
+            } else if (!pending.transactionIds.includes(transaction.id)) {
+              pending.transactionIds.push(transaction.id);
+            }
+            outcome =
+              createdKnownCandidate || newCandidateIds.has(pending.id)
+                ? { kind: 'new_candidate', candidate: pending }
+                : {
+                    kind: 'pending_candidate',
+                    candidateId: pending.id,
+                  };
+          }
+          outcomeByKey.set(importOutcomeKey(outcome, service.id), outcome);
         }
         outcomes = [...outcomeByKey.values()];
         confirmedCandidateCount = outcomes.filter(
