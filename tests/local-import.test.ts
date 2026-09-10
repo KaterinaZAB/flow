@@ -1,7 +1,7 @@
 import 'fake-indexeddb/auto';
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
-import { localCommand } from '../lib/local/actions.ts';
+import { localCommand, type ImportOutcome } from '../lib/local/actions.ts';
 import { clearWorkspace, readWorkspace } from '../lib/local/repository.ts';
 import { makePdf } from './pdf-fixture.ts';
 
@@ -47,11 +47,23 @@ test('reviewed PDF import creates known-subscription candidates in local storage
     method: 'POST',
     body: importForm,
   });
-  const result = (await response.json()) as { candidateCount: number };
+  const result = (await response.json()) as {
+    candidateCount: number;
+    outcomes: ImportOutcome[];
+  };
   assert.equal(result.candidateCount, 1);
+  assert.ok(
+    result.outcomes.some(
+      (outcome) =>
+        outcome.kind === 'new_candidate' &&
+        outcome.candidate.expense.serviceId === 'yandex-plus' &&
+        outcome.candidate.expense.amountMinor === 24900,
+    ),
+  );
   const workspace = await readWorkspace();
   assert.equal(workspace.candidates.length, 1);
   assert.equal(workspace.candidates[0].expense.serviceId, 'yandex-plus');
+  assert.equal(workspace.candidates[0].expense.amountMinor, 24900);
 
   const repeatedResponse = await localCommand('/imports', {
     method: 'POST',
@@ -60,9 +72,13 @@ test('reviewed PDF import creates known-subscription candidates in local storage
   const repeated = (await repeatedResponse.json()) as {
     candidateCount: number;
     repeatedImport: boolean;
+    outcomes: ImportOutcome[];
   };
-  assert.equal(repeated.candidateCount, 1);
+  assert.equal(repeated.candidateCount, 0);
   assert.equal(repeated.repeatedImport, true);
+  assert.ok(
+    repeated.outcomes.some((outcome) => outcome.kind === 'pending_candidate'),
+  );
   const repeatedWorkspace = await readWorkspace();
   assert.equal(repeatedWorkspace.transactions.length, 2);
   assert.equal(repeatedWorkspace.candidates.length, 1);
@@ -89,10 +105,14 @@ test('reviewed PDF import creates known-subscription candidates in local storage
     candidateCount: number;
     confirmedCandidateCount: number;
     repeatedImport: boolean;
+    outcomes: ImportOutcome[];
   };
   assert.equal(confirmed.candidateCount, 0);
   assert.equal(confirmed.confirmedCandidateCount, 1);
   assert.equal(confirmed.repeatedImport, true);
+  assert.ok(
+    confirmed.outcomes.some((outcome) => outcome.kind === 'confirmed_expense'),
+  );
 
   await clearWorkspace();
   const rejectedFirstResponse = await localCommand('/imports', {
@@ -120,7 +140,20 @@ test('reviewed PDF import creates known-subscription candidates in local storage
   const rejected = (await rejectedResponse.json()) as {
     candidateCount: number;
     rejectedCandidateCount: number;
+    outcomes: ImportOutcome[];
   };
   assert.equal(rejected.candidateCount, 0);
   assert.equal(rejected.rejectedCandidateCount, 1);
+  assert.ok(
+    rejected.outcomes.some((outcome) => outcome.kind === 'previously_rejected'),
+  );
+  await localCommand('/candidates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ids: [rejectedFirstWorkspace.candidates[0].id],
+      decision: 'reconsider',
+    }),
+  });
+  assert.equal((await readWorkspace()).candidates[0].decision, 'pending');
 });

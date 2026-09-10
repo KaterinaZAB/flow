@@ -1,5 +1,5 @@
 'use client';
-import { localCommand } from '@/lib/local/actions';
+import { localCommand, type ImportOutcome } from '@/lib/local/actions';
 import { PdfReview } from './pdf-review';
 import type { PdfPreview } from '@/lib/import/pdf';
 import { useState, useRef } from 'react';
@@ -25,6 +25,7 @@ type Result = {
   confirmedCandidateCount?: number;
   rejectedCandidateCount?: number;
   knownServiceCount?: number;
+  outcomes?: ImportOutcome[];
   candidates?: Candidate[];
   transactions?: Transaction[];
 };
@@ -45,6 +46,9 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
       direction: -1,
     });
   const ref = useRef<HTMLInputElement>(null);
+  const highlightedOutcome = result?.outcomes?.find(
+    (outcome) => outcome.kind !== 'not_recurring',
+  );
   function choose(f: File | undefined) {
     if (!f) return;
     setError('');
@@ -94,13 +98,44 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
         throw new Error(data.error);
       }
       if (!r.ok) throw new Error(data.error);
-      if ((data.candidateCount ?? 0) > 0) {
+      const hasFinalizedOutcome = data.outcomes?.some(
+        (outcome) =>
+          outcome.kind === 'confirmed_expense' ||
+          outcome.kind === 'previously_rejected',
+      );
+      if (
+        !hasFinalizedOutcome &&
+        ((data.candidateCount ?? 0) > 0 ||
+          data.outcomes?.some(
+            (outcome) =>
+              outcome.kind === 'new_candidate' ||
+              outcome.kind === 'pending_candidate',
+          ))
+      ) {
         window.location.href = '/detected';
         return;
       }
       setResult(data);
     } catch (e) {
       setError((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
+  async function reconsider(candidateId: string) {
+    setBusy(true);
+    setError('');
+    try {
+      const response = await localCommand('/candidates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ids: [candidateId], decision: 'reconsider' }),
+      });
+      if (!response.ok)
+        throw new Error('Не удалось вернуть расход на проверку.');
+      window.location.href = '/detected';
+    } catch (reason) {
+      setError((reason as Error).message);
     } finally {
       setBusy(false);
     }
@@ -162,24 +197,36 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
             <div className="import-success">
               <CheckCircle2 size={44} />
               <h2>
-                {result.repeatedImport
-                  ? 'Эта выписка уже была импортирована'
-                  : 'Регулярные расходы не найдены'}
+                {highlightedOutcome?.kind === 'confirmed_expense'
+                  ? highlightedOutcome.expenseName +
+                    ' уже добавлен в регулярные расходы'
+                  : highlightedOutcome?.kind === 'previously_rejected'
+                    ? highlightedOutcome.expenseName +
+                      ' был ранее отмечен как нерегулярный'
+                    : result.repeatedImport
+                      ? 'Эта выписка уже была импортирована'
+                      : 'Регулярные расходы не найдены'}
               </h2>
               <p>
-                {result.repeatedImport
-                  ? 'Мы повторно проверили ранее найденные операции и не добавили дубликаты.'
-                  : 'Мы проанализировали ' +
-                    result.analyzedCount +
-                    ' операций, но не нашли достаточно уверенных повторяющихся платежей.'}
+                {highlightedOutcome?.kind === 'confirmed_expense'
+                  ? 'Этот расход уже учтён в вашем обзоре.'
+                  : highlightedOutcome?.kind === 'previously_rejected'
+                    ? 'Мы не добавили его автоматически. Вы можете вернуть решение на проверку.'
+                    : result.repeatedImport
+                      ? 'Мы повторно проверили ранее найденные операции и не добавили дубликаты.'
+                      : 'Мы проанализировали ' +
+                        result.analyzedCount +
+                        ' операций, но не нашли достаточно уверенных повторяющихся платежей.'}
               </p>
-              {result.confirmedCandidateCount ? (
+              {result.confirmedCandidateCount &&
+              highlightedOutcome?.kind !== 'confirmed_expense' ? (
                 <p className="import-hint">
                   {result.confirmedCandidateCount === 1
                     ? 'Похожий расход уже подтверждён и учтён в вашем обзоре.'
                     : 'Похожие расходы уже подтверждены и учтены в вашем обзоре.'}
                 </p>
-              ) : result.rejectedCandidateCount ? (
+              ) : result.rejectedCandidateCount &&
+                highlightedOutcome?.kind !== 'previously_rejected' ? (
                 <p className="import-hint">
                   {result.rejectedCandidateCount === 1
                     ? 'Похожий расход был ранее отклонён и не будет добавлен автоматически.'
@@ -201,20 +248,56 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                 </details>
               )}
               <div className="empty-actions">
-                <button
-                  className="primary-button"
-                  onClick={() => {
-                    setResult(null);
-                    setFile(null);
-                    setPdfPreview(null);
-                  }}
+                {highlightedOutcome?.kind === 'confirmed_expense' ? (
+                  <a
+                    className="primary-button"
+                    href={'/expenses/' + highlightedOutcome.expenseId}
+                  >
+                    Открыть расход
+                  </a>
+                ) : highlightedOutcome?.kind === 'previously_rejected' ? (
+                  <button
+                    className="primary-button"
+                    disabled={busy}
+                    onClick={() =>
+                      void reconsider(highlightedOutcome.candidateId)
+                    }
+                  >
+                    Пересмотреть решение
+                  </button>
+                ) : (
+                  <button
+                    className="primary-button"
+                    onClick={() => {
+                      setResult(null);
+                      setFile(null);
+                      setPdfPreview(null);
+                    }}
+                  >
+                    Загрузить выписку за больший период
+                  </button>
+                )}
+                <a
+                  className="secondary-button"
+                  href={
+                    result.outcomes?.some(
+                      (outcome) =>
+                        outcome.kind === 'new_candidate' ||
+                        outcome.kind === 'pending_candidate',
+                    )
+                      ? '/detected'
+                      : '/expenses'
+                  }
                 >
-                  Загрузить выписку за больший период
-                </button>
-                <a className="secondary-button" href="/expenses">
-                  {result.confirmedCandidateCount
-                    ? 'Открыть расходы'
-                    : 'Добавить расход вручную'}
+                  {result.outcomes?.some(
+                    (outcome) =>
+                      outcome.kind === 'new_candidate' ||
+                      outcome.kind === 'pending_candidate',
+                  )
+                    ? 'Посмотреть кандидаты'
+                    : result.confirmedCandidateCount
+                      ? 'Открыть расходы'
+                      : 'Добавить расход вручную'}
                 </a>
               </div>
             </div>

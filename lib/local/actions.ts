@@ -7,6 +7,21 @@ import { today } from '../domain/calendar.ts';
 import { findService } from '../domain/catalog.ts';
 import type { Candidate } from '../domain/types.ts';
 
+export type ImportOutcome =
+  | { kind: 'new_candidate'; candidate: Candidate }
+  | { kind: 'pending_candidate'; candidateId: string }
+  | {
+      kind: 'confirmed_expense';
+      expenseId: string;
+      expenseName: string;
+    }
+  | {
+      kind: 'previously_rejected';
+      candidateId: string;
+      expenseName: string;
+    }
+  | { kind: 'not_recurring' };
+
 function candidateKey(candidate: Candidate) {
   return [
     candidate.expense.serviceId ?? candidate.expense.name.toLowerCase(),
@@ -131,7 +146,8 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         repeatedImport = false,
         confirmedCandidateCount = 0,
         rejectedCandidateCount = 0,
-        knownServiceCount = 0;
+        knownServiceCount = 0,
+        outcomes: ImportOutcome[] = [];
       await updateWorkspace((state) => {
         const existing = new Set(
           state.transactions.map((t) => t.fingerprint + ':' + t.occurrence),
@@ -154,9 +170,6 @@ export async function localCommand(path: string, options: RequestInit = {}) {
           return persisted ? [persisted] : [];
         });
         repeatedImport = added === 0;
-        const importedIds = new Set(
-          importedRows.map((transaction) => transaction.id),
-        );
         const importedServices = new Set(
           importedRows.flatMap((transaction) => {
             const service = findService(transaction.originalMerchant);
@@ -164,35 +177,20 @@ export async function localCommand(path: string, options: RequestInit = {}) {
           }),
         );
         knownServiceCount = importedServices.size;
-        // Detect across imports, but retain confirmed/rejected decisions and avoid linked evidence.
+        // Final decisions protect their evidence. Pending candidates stay in the
+        // workspace so a repeated import can show the same review instead of
+        // deleting and recreating it with a new id.
         const finalized = state.candidates.filter(
-          (c) => c.decision !== 'pending',
+          (candidate) => candidate.decision !== 'pending',
         );
-        const relatedFinalized = finalized.filter(
-          (candidate) =>
-            candidate.transactionIds.some((id) => importedIds.has(id)) ||
-            (!!candidate.expense.serviceId &&
-              importedServices.has(candidate.expense.serviceId)),
-        );
-        confirmedCandidateCount = relatedFinalized.filter(
-          (candidate) => candidate.decision === 'confirmed',
-        ).length;
-        rejectedCandidateCount = relatedFinalized.filter(
-          (candidate) => candidate.decision === 'rejected',
-        ).length;
         const used = new Set(
           finalized.flatMap((candidate) => candidate.transactionIds),
-        );
-        state.candidates = state.candidates.filter(
-          (c) => c.decision !== 'pending',
         );
         const eligible = state.transactions.filter(
           (t) => !t.recurringExpenseId && !used.has(t.id),
         );
-        // Run this import independently as well. Existing local history can
-        // contain old imported rows or dismissed candidates, but it must never
-        // hide a newly found known subscription. On a repeated upload these
-        // are the persisted rows, so a candidate still links to real evidence.
+        // Run this import independently as well. On a repeated upload these
+        // are persisted rows, so every candidate still links to real evidence.
         const detected = uniqueCandidates([
           ...detectRecurring(eligible, id, today()),
           ...(importedRows.length
@@ -204,12 +202,92 @@ export async function localCommand(path: string, options: RequestInit = {}) {
             : []),
         ]).filter(
           (candidate) =>
-            !finalized.some(
-              (existing) => candidateKey(existing) === candidateKey(candidate),
+            !state.candidates.some(
+              (existing) =>
+                candidateKey(existing) === candidateKey(candidate) &&
+                (sameEvidence(existing, candidate) ||
+                  existing.decision !== 'pending'),
             ),
         );
         state.candidates.push(...detected);
         count = detected.length;
+        const newCandidateIds = new Set(
+          detected.map((candidate) => candidate.id),
+        );
+        const outcomeByKey = new Map<string, ImportOutcome>();
+        for (const transaction of importedRows) {
+          const service = findService(transaction.originalMerchant);
+          if (
+            !service ||
+            (service.merchantClass !== 'subscription' &&
+              service.category !== 'subscription')
+          )
+            continue;
+          const matching = (candidate: Candidate) =>
+            candidate.expense.serviceId === service.id &&
+            candidate.expense.amountMinor === transaction.amountMinor &&
+            candidate.expense.currency === transaction.currency;
+          const pending = state.candidates.find(
+            (candidate) =>
+              candidate.decision === 'pending' &&
+              matching(candidate) &&
+              candidate.transactionIds.includes(transaction.id),
+          );
+          const confirmed = state.candidates.find(
+            (candidate) =>
+              candidate.decision === 'confirmed' && matching(candidate),
+          );
+          const expense = state.expenses.find(
+            (item) =>
+              item.status === 'active' &&
+              item.serviceId === service.id &&
+              item.currency === transaction.currency &&
+              Math.abs(item.amountMinor - transaction.amountMinor) <=
+                Math.max(100, transaction.amountMinor * 0.1),
+          );
+          const rejected = state.candidates.find(
+            (candidate) =>
+              candidate.decision === 'rejected' && matching(candidate),
+          );
+          const outcome = pending
+            ? newCandidateIds.has(pending.id)
+              ? ({ kind: 'new_candidate', candidate: pending } as const)
+              : ({
+                  kind: 'pending_candidate',
+                  candidateId: pending.id,
+                } as const)
+            : expense || confirmed
+              ? {
+                  kind: 'confirmed_expense' as const,
+                  expenseId: expense?.id ?? confirmed!.expense.id,
+                  expenseName: expense?.name ?? confirmed!.expense.name,
+                }
+              : rejected
+                ? {
+                    kind: 'previously_rejected' as const,
+                    candidateId: rejected.id,
+                    expenseName: rejected.expense.name,
+                  }
+                : ({ kind: 'not_recurring' } as const);
+          const key =
+            outcome.kind === 'new_candidate'
+              ? outcome.kind + ':' + outcome.candidate.id
+              : outcome.kind === 'pending_candidate'
+                ? outcome.kind + ':' + outcome.candidateId
+                : outcome.kind === 'confirmed_expense'
+                  ? outcome.kind + ':' + outcome.expenseId
+                  : outcome.kind === 'previously_rejected'
+                    ? outcome.kind + ':' + outcome.candidateId
+                    : outcome.kind + ':' + service.id;
+          outcomeByKey.set(key, outcome);
+        }
+        outcomes = [...outcomeByKey.values()];
+        confirmedCandidateCount = outcomes.filter(
+          (outcome) => outcome.kind === 'confirmed_expense',
+        ).length;
+        rejectedCandidateCount = outcomes.filter(
+          (outcome) => outcome.kind === 'previously_rejected',
+        ).length;
         state.imports.unshift({
           id,
           filename: file.name,
@@ -233,6 +311,7 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         confirmedCandidateCount,
         rejectedCandidateCount,
         knownServiceCount,
+        outcomes,
       });
     }
     if (path === '/candidates') {
@@ -244,15 +323,25 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         );
       if (
         !Array.isArray(input.ids) ||
-        !['confirmed', 'rejected', 'edit'].includes(input.decision)
+        !['confirmed', 'rejected', 'edit', 'reconsider'].includes(
+          input.decision,
+        )
       )
         throw new Error('Некорректное действие.');
       const edit =
         input.decision === 'edit' ? validateExpense(input.edit) : null;
       await updateWorkspace((state) => {
         for (const c of state.candidates.filter(
-          (c) => input.ids.includes(c.id) && c.decision === 'pending',
+          (candidate) =>
+            input.ids.includes(candidate.id) &&
+            (input.decision === 'reconsider'
+              ? candidate.decision === 'rejected'
+              : candidate.decision === 'pending'),
         )) {
+          if (input.decision === 'reconsider') {
+            c.decision = 'pending';
+            continue;
+          }
           if (edit) {
             Object.assign(c.expense, edit);
             continue;
