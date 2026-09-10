@@ -56,6 +56,10 @@ export type RecurringExpense = {
 export type Transaction = {
   id: string;
   originalMerchant: string;
+  bankCategory?: string;
+  transactionTime?: string;
+  parseConfidence?: number;
+  parseReviewReasons?: string[];
   normalizedMerchant: string;
   amountMinor: number;
   currency: string;

@@ -40,7 +40,24 @@ export function PdfReview({
   const visibleRows = reviewOnly ? reviewRows : preview.rows;
   const edit = (id: string, change: Partial<PdfRow>) =>
     onChange(
-      preview.rows.map((row) => (row.id === id ? { ...row, ...change } : row)),
+      preview.rows.map((row) =>
+        row.id === id
+          ? {
+              ...row,
+              ...change,
+              ...('date' in change ||
+              'merchant' in change ||
+              'amount' in change ||
+              'currency' in change ||
+              'direction' in change
+                ? {
+                    reviewReasons: [],
+                    parseConfidence: 1,
+                  }
+                : {}),
+            }
+          : row,
+      ),
     );
   const openRows = (onlyReview = false) => {
     setReviewOnly(onlyReview);

@@ -42,6 +42,13 @@ const transaction = z
   .object({
     id,
     originalMerchant: z.string().max(240),
+    bankCategory: z.string().max(120).optional(),
+    transactionTime: z
+      .string()
+      .regex(/^([01]\d|2[0-3]):[0-5]\d(?::[0-5]\d)?$/)
+      .optional(),
+    parseConfidence: z.number().min(0).max(1).optional(),
+    parseReviewReasons: z.array(z.string().max(80)).max(10).optional(),
     normalizedMerchant: z.string().max(240),
     amountMinor: minor,
     currency: z.string().refine((v) => currencies.includes(v as never)),

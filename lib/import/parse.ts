@@ -16,6 +16,10 @@ export type ImportOptions = {
     amount: number;
     currency?: number;
     direction?: number;
+    bankCategory?: number;
+    time?: number;
+    parseConfidence?: number;
+    parseReviewReasons?: number;
   };
 };
 export type ParseResult = {
@@ -57,6 +61,10 @@ const aliases = {
   ],
   currency: ['currency', 'валюта', 'валютаоперации', 'валютасчета'],
   direction: ['direction', 'типоперации', 'направление', 'тип'],
+  bankCategory: ['bankcategory', 'категория', 'категориябанка'],
+  time: ['time', 'время', 'времяоперации'],
+  parseConfidence: ['parseconfidence'],
+  parseReviewReasons: ['parsereviewreasons'],
 };
 const key = (s: string) => s.toLowerCase().replace(/[^\p{L}\p{N}]/gu, '');
 export class MappingError extends Error {
@@ -229,6 +237,33 @@ export async function parseStatement(
       transactions.push({
         id: crypto.randomUUID(),
         originalMerchant,
+        ...(mapping.bankCategory !== undefined && mapping.bankCategory >= 0
+          ? {
+              bankCategory:
+                (row[mapping.bankCategory] ?? '').trim() || undefined,
+            }
+          : {}),
+        ...(mapping.time !== undefined && mapping.time >= 0
+          ? { transactionTime: (row[mapping.time] ?? '').trim() || undefined }
+          : {}),
+        ...(mapping.parseConfidence !== undefined &&
+        mapping.parseConfidence >= 0
+          ? {
+              parseConfidence:
+                Number(row[mapping.parseConfidence]) >= 0 &&
+                Number(row[mapping.parseConfidence]) <= 1
+                  ? Number(row[mapping.parseConfidence])
+                  : undefined,
+            }
+          : {}),
+        ...(mapping.parseReviewReasons !== undefined &&
+        mapping.parseReviewReasons >= 0
+          ? {
+              parseReviewReasons: (row[mapping.parseReviewReasons] ?? '')
+                .split(',')
+                .filter(Boolean),
+            }
+          : {}),
         normalizedMerchant,
         amountMinor,
         currency,
