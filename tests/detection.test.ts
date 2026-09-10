@@ -2,6 +2,10 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { detectRecurring } from '../lib/domain/detection.ts';
 import { addPeriod, advanceTo } from '../lib/domain/calendar.ts';
+import {
+  findService,
+  normalizeMerchant,
+} from '../lib/domain/catalog.ts';
 import type { Transaction } from '../lib/domain/types.ts';
 function rows(
   dates: string[],
@@ -18,6 +22,24 @@ function rows(
     recurringExpenseId: null,
     sourceImportId: 'test',
     fingerprint: String(i),
+    occurrence: 0,
+  }));
+}
+function merchantRows(
+  merchant: string,
+  dates: string[],
+  amounts: number[],
+): Transaction[] {
+  return dates.map((paidAt, index) => ({
+    id: `${merchant}-${index}`,
+    originalMerchant: merchant,
+    normalizedMerchant: normalizeMerchant(merchant),
+    amountMinor: amounts[index % amounts.length],
+    currency: 'RUB',
+    paidAt,
+    recurringExpenseId: null,
+    sourceImportId: 'test',
+    fingerprint: `${merchant}-${index}`,
     occurrence: 0,
   }));
 }
@@ -102,4 +124,114 @@ test('currencies never merge and forecasts roll to future', () => {
     advanceTo('2026-01-31', 'monthly', '2026-09-06', 31),
     '2026-09-30',
   );
+});
+
+test('mobile operator aliases resolve without promoting one payment', () => {
+  for (const [merchant, serviceId] of [
+    ['MTS*PAY MOSCOW RUS', 'mts'],
+    ['YM*MTS*PAY MOSCOW RUS', 'mts'],
+    ['BEELINE MOSCOW RUS', 'beeline'],
+    ['VIMPELCOM 12345', 'beeline'],
+    ['MEGAFON*123456', 'megafon'],
+    ['YOTA MOSCOW RUS', 'yota'],
+  ])
+    assert.equal(findService(merchant)?.id, serviceId);
+
+  assert.deepEqual(
+    detectRecurring(
+      merchantRows('MTS*PAY MOSCOW RUS', ['2026-08-10'], [65000]),
+      'i',
+      '2026-09-01',
+    ),
+    [],
+  );
+});
+
+test('internet and variable utility bills require and use monthly history', () => {
+  const [internet] = detectRecurring(
+    merchantRows(
+      'DOM.RU MOSCOW RUS',
+      ['2026-05-12', '2026-06-12', '2026-07-11'],
+      [89000],
+    ),
+    'i',
+    '2026-08-01',
+  );
+  assert.equal(internet.expense.serviceId, 'domru');
+  assert.equal(internet.expense.type, 'internet');
+  assert.match(internet.reasons[0], /домашний интернет/);
+
+  const [utility] = detectRecurring(
+    merchantRows(
+      'МОСЭНЕРГОСБЫТ',
+      ['2026-04-20', '2026-05-21', '2026-06-20', '2026-07-22'],
+      [690000, 720000, 705000, 750000],
+    ),
+    'i',
+    '2026-08-01',
+  );
+  assert.equal(utility.expense.type, 'utility');
+  assert.match(utility.reasons[0], /коммунальный/);
+  assert.match(utility.reasons[3], /Сумма меняется/);
+});
+
+test('monthly recipient transfer can be reviewed as rent', () => {
+  const [candidate] = detectRecurring(
+    merchantRows(
+      'ПЕРЕВОД ИВАНОВ ИВАН',
+      ['2026-05-03', '2026-06-02', '2026-07-03'],
+      [5500000, 5500000, 5550000],
+    ),
+    'i',
+    '2026-08-01',
+  );
+  assert.equal(candidate.expense.type, 'rent');
+  assert.equal(candidate.decision, 'pending');
+  assert.match(candidate.reasons[0], /оплату жилья/);
+});
+
+test('explicit rent description can be reviewed from one payment', () => {
+  const [candidate] = detectRecurring(
+    merchantRows('Оплата жилья аренда', ['2026-07-03'], [5500000]),
+    'i',
+    '2026-08-01',
+  );
+  assert.equal(candidate.expense.type, 'rent');
+  assert.equal(candidate.decision, 'pending');
+  assert.match(candidate.reasons[0], /явно указывает на аренду/);
+});
+
+test('usage-based transport needs a strong repeated pattern', () => {
+  assert.equal(findService('WHOOSH MOSCOW RUS')?.id, 'whoosh');
+  assert.deepEqual(
+    detectRecurring(
+      merchantRows('WHOOSH MOSCOW RUS', ['2026-07-10'], [19900]),
+      'i',
+      '2026-08-01',
+    ),
+    [],
+  );
+  const candidates = detectRecurring(
+    merchantRows(
+      'WHOOSH MOSCOW RUS',
+      ['2026-04-10', '2026-05-11', '2026-06-10', '2026-07-09'],
+      [19900, 21900, 19900, 22900],
+    ),
+    'i',
+    '2026-08-01',
+  );
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].decision, 'pending');
+  assert.equal(candidates[0].expense.serviceId, 'whoosh');
+  assert.ok((candidates[0].expense.subscriptionConfidence ?? 1) < 0.5);
+});
+
+test('digital subscription detection remains available from one payment', () => {
+  const [candidate] = detectRecurring(
+    merchantRows('YANDEX*9999*PLUS MOSCOW RUS', ['2026-07-09'], [24900]),
+    'i',
+    '2026-08-01',
+  );
+  assert.equal(candidate.expense.serviceId, 'yandex-plus');
+  assert.ok((candidate.expense.subscriptionConfidence ?? 0) >= 0.9);
 });

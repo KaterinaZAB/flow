@@ -149,7 +149,7 @@ export const services: Service[] = [
     id: 'rostelecom',
     name: 'Ростелеком',
     category: 'internet',
-    merchantAliases: ['ROSTELECOM', 'РОСТЕЛЕКОМ'],
+    merchantAliases: ['ROSTELECOM', 'РОСТЕЛЕКОМ', 'ROSTELECOM RUS'],
     merchantClass: 'regular_bill',
     color: '#8775ba',
     monogram: 'Р',
@@ -161,10 +161,11 @@ export const services: Service[] = [
     merchantAliases: ['MTS', 'МТС'],
     aliases: [
       {
-        pattern: 'MTS',
-        matchType: 'exact',
+        pattern:
+          '^(?:(?:YM|CP|SBER)[\\s*._-]+)?MTS(?:[\\s*._-]+(?:PAY|RUS))?(?:[\\s*._-]|$)',
+        matchType: 'regex',
         provenance: 'official-merchant-list',
-        confidence: 0.95,
+        confidence: 0.97,
       },
       {
         pattern: 'МТС',
@@ -181,7 +182,7 @@ export const services: Service[] = [
     id: 'beeline',
     name: 'Билайн',
     category: 'mobile',
-    merchantAliases: ['BEELINE', 'БИЛАЙН'],
+    merchantAliases: ['BEELINE', 'БИЛАЙН', 'VIMPELCOM', 'VIMPEL COM'],
     merchantClass: 'regular_bill',
     color: '#c9a343',
     monogram: 'Б',
@@ -328,8 +329,10 @@ export const services: Service[] = [
   },
   ...[
     ['megafon', 'МегаФон', ['МЕГАФОН', 'MEGAFON']],
+    ['yota', 'Yota', ['YOTA', 'ЙОТА']],
     ['tele2', 'T2', ['T2', 'TELE2']],
-    ['sbermobile', 'СберМобайл', ['СБЕРМОБАЙЛ']],
+    ['tinkoff-mobile', 'Тинькофф Мобайл', ['ТИНЬКОФФ МОБАЙЛ', 'TINKOFF MOBILE']],
+    ['sbermobile', 'СберМобайл', ['СБЕРМОБАЙЛ', 'SBERMOBILE', 'SBER MOBILE']],
   ].map(([id, name, merchantAliases]) => ({
     id: id as string,
     name: name as string,
@@ -340,8 +343,9 @@ export const services: Service[] = [
     monogram: (name as string).slice(0, 1),
   })),
   ...[
-    ['domru', 'Дом.ру', ['DOM RU', 'ДОМ РУ', 'ER TELECOM']],
+    ['domru', 'Дом.ру', ['DOM RU', 'ДОМ РУ', 'ER TELECOM', 'ER-TELECOM']],
     ['mgts', 'МГТС', ['МГТС', 'MGTS']],
+    ['ttk', 'ТТК', ['ТТК', 'TRANSTELECOM', 'TRANS TELE COM']],
   ].map(([id, name, merchantAliases]) => ({
     id: id as string,
     name: name as string,
@@ -352,12 +356,12 @@ export const services: Service[] = [
     monogram: (name as string).slice(0, 1),
   })),
   ...[
-    ['mosenergo', 'Мосэнергосбыт', ['МОСЭНЕРГОСБЫТ']],
+    ['mosenergo', 'Мосэнергосбыт', ['МОСЭНЕРГОСБЫТ', 'ЭЛЕКТРОЭНЕРГИЯ', 'ЭЛЕКТРИЧЕСТВО']],
     ['mosobleirc', 'МосОблЕИРЦ', ['МОСОБЛЕИРЦ']],
     ['eirc', 'ЕИРЦ', ['ЕИРЦ']],
-    ['mosvodokanal', 'Мосводоканал', ['МОСВОДОКАНАЛ']],
+    ['mosvodokanal', 'Мосводоканал', ['МОСВОДОКАНАЛ', 'ВОДОКАНАЛ', 'ВОДА']],
     ['gazprom-gas', 'Газпром межрегионгаз', ['ГАЗПРОМ МЕЖРЕГИОНГАЗ']],
-    ['housing', 'ЖКХ', ['ЖКХ', 'КАПРЕМОНТ']],
+    ['housing', 'ЖКХ', ['ЖКХ', 'КОММУНАЛЬНЫЕ УСЛУГИ', 'КВАРТПЛАТА', 'УПРАВЛЯЮЩАЯ КОМПАНИЯ', 'УК', 'ТСЖ', 'КАПРЕМОНТ', 'КАПИТАЛЬНЫЙ РЕМОНТ', 'ТЕПЛОСЕТЬ', 'ОТОПЛЕНИЕ', 'ВЫВОЗ МУСОРА', 'ДОМОФОН', 'ГАЗ']],
   ].map(([id, name, merchantAliases]) => ({
     id: id as string,
     name: name as string,
@@ -365,6 +369,42 @@ export const services: Service[] = [
     merchantAliases: merchantAliases as string[],
     merchantClass: 'regular_bill' as const,
     color: '#5b8c72',
+    monogram: (name as string).slice(0, 1),
+  })),
+  {
+    id: 'rent-payment',
+    name: 'Аренда жилья',
+    category: 'rent',
+    merchantAliases: ['АРЕНДА', 'RENT', 'RENTAL', 'НАЕМ', 'НАЁМ', 'ОПЛАТА ЖИЛЬЯ'],
+    merchantClass: 'regular_bill',
+    color: '#8b7355',
+    monogram: 'А',
+  },
+  {
+    id: 'whoosh-pass',
+    name: 'Whoosh Pass',
+    category: 'subscription',
+    merchantAliases: ['WHOOSH PASS'],
+    merchantClass: 'subscription',
+    color: '#ffd234',
+    monogram: 'W',
+  },
+  ...[
+    ['yandex-go', 'Яндекс Go', ['YANDEX GO', 'ЯНДЕКС GO']],
+    ['yandex-scooters', 'Яндекс Самокаты', ['ЯНДЕКС САМОКАТЫ', 'YANDEX SCOOTERS']],
+    ['whoosh', 'Whoosh', ['WHOOSH']],
+    ['urent', 'МТС Юрент', ['URENT', 'ЮРЕНТ', 'МТС ЮРЕНТ', 'MTS URENT', 'YM URENT']],
+    ['yandex-drive', 'Яндекс Драйв', ['ЯНДЕКС ДРАЙВ', 'YANDEX DRIVE']],
+    ['delimobil', 'Делимобиль', ['ДЕЛИМОБИЛЬ', 'DELIMOBIL']],
+    ['citydrive', 'Ситидрайв', ['СИТИДРАЙВ', 'CITYDRIVE']],
+    ['moscow-metro', 'Московский транспорт', ['MOSCOW METRO', 'МОСКОВСКОЕ МЕТРО', 'МЕТРО', 'ТРОЙКА', 'МОСГОРТРАНС']],
+  ].map(([id, name, merchantAliases]) => ({
+    id: id as string,
+    name: name as string,
+    category: 'service' as const,
+    merchantAliases: merchantAliases as string[],
+    merchantClass: 'usage_based' as const,
+    color: '#527f91',
     monogram: (name as string).slice(0, 1),
   })),
   ...[
@@ -402,6 +442,10 @@ export function normalizedText(merchant: string) {
 }
 export function matchService(merchant: string) {
   const normalized = normalizedText(merchant);
+  const normalizedVariants = [
+    normalized,
+    normalized.replace(/^(?:YM|Y M|CP|SBER|PAYMENT)\s+/, ''),
+  ];
   for (const service of services) {
     if (service.aliases) {
       const alias = service.aliases.find((candidate) => {
@@ -411,17 +455,22 @@ export function matchService(merchant: string) {
             : normalizedText(candidate.pattern);
         if (candidate.matchType === 'regex')
           return new RegExp(pattern, 'i').test(merchant);
-        if (candidate.matchType === 'exact') return normalized === pattern;
+        if (candidate.matchType === 'exact')
+          return normalizedVariants.some((value) => value === pattern);
         if (candidate.matchType === 'contains')
-          return normalized.includes(pattern);
-        return normalized === pattern || normalized.startsWith(pattern + ' ');
+          return normalizedVariants.some((value) => value.includes(pattern));
+        return normalizedVariants.some(
+          (value) => value === pattern || value.startsWith(pattern + ' '),
+        );
       });
       if (alias) return { service, confidence: alias.confidence, alias };
       continue;
     }
     const alias = service.merchantAliases.find((candidate) => {
       const pattern = normalizedText(candidate);
-      return normalized === pattern || normalized.startsWith(pattern + ' ');
+      return normalizedVariants.some(
+        (value) => value === pattern || value.startsWith(pattern + ' '),
+      );
     });
     if (alias) return { service, confidence: 0.9, alias: undefined };
   }
@@ -434,7 +483,11 @@ export function findService(merchant: string) {
 
 export function merchantBehavior(merchant: string) {
   const normalized = normalizedText(merchant);
-  if (/(?:ПЕРЕВОД|SBP|СБП|P2P)/.test(normalized)) return 'transfer' as const;
+  if (
+    /(?:ПЕРЕВОД|SBP|СБП|P2P)/.test(normalized) &&
+    !/(?:АРЕНДА|RENT|RENTAL|НАЕМ|НАЁМ|ОПЛАТА ЖИЛЬЯ)/.test(normalized)
+  )
+    return 'transfer' as const;
   if (
     /\b(?:TUTU|TUTU4|RUSSIAN RAILWAYS|METRO|MOS TRANSPORT|STRELKA|URENT|YANDEX GO|YANDEX MARKET|OZON|WILDBERRIES|ALIEXPRESS)\b/.test(
       normalized,

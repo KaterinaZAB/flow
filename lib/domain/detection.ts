@@ -36,7 +36,24 @@ function inferType(name: string): RecurringExpenseType {
   if (/СТРАХ|INSURANCE/i.test(name)) return 'insurance';
   return 'other';
 }
-function bestPattern(rows: Transaction[], known: boolean): Pattern | null {
+function looksLikeRecipientTransfer(merchant: string) {
+  const normalized = merchant
+    .normalize('NFKC')
+    .toUpperCase()
+    .replace(/[^\p{L}\s]+/gu, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  const recipient = normalized.replace(/^(?:ПЕРЕВОД|СБП|SBP|P2P)\s+/, '');
+  return (
+    recipient !== normalized &&
+    recipient.split(' ').filter((part) => part.length > 1).length >= 2
+  );
+}
+function bestPattern(
+  rows: Transaction[],
+  known: boolean,
+  minimumOverride?: number,
+): Pattern | null {
   let best: Pattern | null = null;
   for (const period of [
     'weekly',
@@ -44,8 +61,8 @@ function bestPattern(rows: Transaction[], known: boolean): Pattern | null {
     'quarterly',
     'yearly',
   ] as BillingPeriod[]) {
-    const minimum =
-      period === 'yearly' || period === 'quarterly' || known ? 2 : 3;
+    const minimum = minimumOverride ??
+      (period === 'yearly' || period === 'quarterly' || known ? 2 : 3);
     if (rows.length < minimum) continue;
     for (let start = 0; start < Math.min(rows.length - 1, 24); start++) {
       const first = rows[start];
@@ -144,10 +161,11 @@ export function detectRecurring(
   const groups = new Map<string, Transaction[]>();
   for (const t of transactions) {
     if (t.recurringExpenseId) continue;
+    const transactionBehavior = merchantBehavior(t.originalMerchant);
     if (
-      ['usage_based', 'retail', 'transfer'].includes(
-        merchantBehavior(t.originalMerchant),
-      )
+      transactionBehavior === 'retail' ||
+      (transactionBehavior === 'transfer' &&
+        !looksLikeRecipientTransfer(t.originalMerchant))
     )
       continue;
     const key = t.normalizedMerchant + '|' + t.currency;
@@ -161,12 +179,26 @@ export function detectRecurring(
     const service = services.find(
       (s) => rows[0].normalizedMerchant === 'service:' + s.id,
     );
+    const recipientTransfer = rows.every((row) =>
+      looksLikeRecipientTransfer(row.originalMerchant),
+    );
+    const behavior = recipientTransfer
+      ? 'regular_bill'
+      : (service?.merchantClass ?? merchantBehavior(rows[0].originalMerchant));
     let remaining = rows.slice(-1000);
     // A short statement can identify a service, but one charge cannot establish its cycle.
     if (rows.length === 1) {
       const last = rows[0],
         type = service?.category ?? inferType(last.normalizedMerchant);
-      if (service || ['utility', 'internet', 'rent'].includes(type)) {
+      const knownSubscription =
+        service?.merchantClass === 'subscription' ||
+        service?.category === 'subscription';
+      const explicitRent =
+        type === 'rent' &&
+        /(?:АРЕНДА|RENT|RENTAL|НАЕМ|НАЁМ|ОПЛАТА ЖИЛЬЯ)/i.test(
+          last.originalMerchant,
+        );
+      if (knownSubscription || explicitRent) {
         const anchor = Number(last.paidAt.slice(8)),
           now = new Date().toISOString();
         const expense: RecurringExpense = {
@@ -208,7 +240,9 @@ export function detectRecurring(
           transactionIds: [last.id],
           decision: 'pending',
           reasons: [
-            service
+            explicitRent
+              ? 'Описание операции явно указывает на аренду жилья.'
+              : service
               ? 'Описание соответствует сервису «' + service.name + '».'
               : 'Описание похоже на оплату жилья или связи.',
             'В истории только один платёж. Повторяемость пока не подтверждена.',
@@ -220,7 +254,11 @@ export function detectRecurring(
       continue;
     }
     for (let lane = 0; lane < 4 && remaining.length >= 2; lane++) {
-      const pattern = bestPattern(remaining, !!service);
+      const pattern = bestPattern(
+        remaining,
+        behavior !== 'usage_based' && (!!service || recipientTransfer),
+        behavior === 'usage_based' ? 3 : undefined,
+      );
       if (!pattern) break;
       const {
         rows: chain,
@@ -242,7 +280,9 @@ export function detectRecurring(
         cycleDays = Math.max(1, daysBetween(last.paidAt, originalNext));
       const stale = latestGap > cycleDays * 2;
       const amounts = chain.map((t) => t.amountMinor);
-      const type = service?.category ?? inferType(last.normalizedMerchant);
+      const type = recipientTransfer
+        ? 'rent'
+        : (service?.category ?? inferType(last.normalizedMerchant));
       const variable = type === 'utility' || amountDeviation > 0.12;
       const amountMinor = variable
         ? median(amounts.slice(-4))
@@ -289,10 +329,22 @@ export function detectRecurring(
       const intervals = chain
         .slice(1)
         .map((t, i) => daysBetween(chain[i].paidAt, t.paidAt));
+      const kindReason =
+        type === 'utility'
+          ? 'Похоже на регулярный коммунальный платёж.'
+          : type === 'mobile'
+            ? 'Похоже на регулярный платёж за мобильную связь.'
+            : type === 'internet'
+              ? 'Похоже на регулярный платёж за домашний интернет.'
+              : type === 'rent'
+                ? 'Похоже на регулярную оплату жилья одному получателю.'
+                : behavior === 'usage_based'
+                  ? 'Мы нашли повторяющиеся платежи сервиса, но результат требует подтверждения.'
+                  : service
+                    ? 'Описание операций соответствует сервису «' + service.name + '».'
+                    : 'Операции имеют одинаковое нормализованное описание.';
       const reasons = [
-        service
-          ? 'Описание операций соответствует сервису «' + service.name + '».'
-          : 'Операции имеют одинаковое нормализованное описание.',
+        kindReason,
         chain.length +
           ' похожих платежей; интервалы ' +
           Math.min(...intervals) +

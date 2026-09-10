@@ -66,9 +66,9 @@ test('bank hints are optional for the universal assembler', () => {
 test('specific subscription aliases do not capture unrelated Yandex or YM merchants', () => {
   assert.equal(findService('YANDEX*8642*PLUS')?.id, 'yandex-plus');
   assert.equal(findService('YANDEX*MARKET'), undefined);
-  assert.equal(findService('YANDEX*GO'), undefined);
+  assert.equal(findService('YANDEX*GO')?.id, 'yandex-go');
   assert.equal(findService('YM*OKKO MOSCOW RUS')?.id, 'okko');
-  assert.equal(findService('YM*URENT MOSCOW RUS'), undefined);
+  assert.equal(findService('YM*URENT MOSCOW RUS')?.id, 'urent');
   assert.equal(findService('CP* START.RU MOSKVA RUS')?.id, 'start');
   assert.equal(findService('MOBILE BANK: KOMISSIYA')?.id, 'mobile-bank-fee');
 });

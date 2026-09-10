@@ -22,15 +22,13 @@ test('automatic CSV direction accepts minus and unsigned expenses, excludes expl
   );
   assert.equal(result.skipped, 3);
   const candidates = detectRecurring(result.transactions, 'i', '2026-09-06');
-  assert.equal(candidates.length, 2);
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].expense.serviceId, 'netflix');
+  assert.equal(candidates[0].transactionIds.length, 1);
+  assert.ok((candidates[0].expense.confidence ?? 1) < 0.5);
   assert.ok(
-    candidates.every(
-      (c) => c.transactionIds.length === 1 && (c.expense.confidence ?? 1) < 0.5,
-    ),
-  );
-  assert.ok(
-    candidates.every((c) =>
-      c.reasons.some((r) => r.includes('Повторяемость пока не подтверждена')),
+    candidates[0].reasons.some((reason) =>
+      reason.includes('Повторяемость пока не подтверждена'),
     ),
   );
 });
@@ -158,11 +156,8 @@ test('one-month PDF completes extraction, automatic selection and detection with
   });
   const found = detectRecurring(parsed.transactions, 'i', '2026-09-06');
   assert.equal(parsed.transactions.length, 2);
-  assert.equal(found.length, 2);
-  assert.deepEqual(
-    new Set(found.map((c) => c.expense.serviceId)),
-    new Set(['netflix', 'mts']),
-  );
+  assert.equal(found.length, 1);
+  assert.equal(found[0].expense.serviceId, 'netflix');
 });
 
 test('a month supports weekly evidence; an unknown isolated purchase is not a subscription', async () => {
