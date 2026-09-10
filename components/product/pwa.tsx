@@ -18,12 +18,34 @@ export function PWA() {
       setInstall(e as InstallPrompt);
     };
     window.addEventListener('beforeinstallprompt', prompt);
-    if ('serviceWorker' in navigator)
-      void navigator.serviceWorker.register('/sw.js').catch(() => {});
+    let refreshing = false;
+    const hadController =
+      'serviceWorker' in navigator &&
+      navigator.serviceWorker.controller !== null;
+    const activateUpdate = () => {
+      if (!hadController || refreshing) return;
+      refreshing = true;
+      window.location.reload();
+    };
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener(
+        'controllerchange',
+        activateUpdate,
+      );
+      void navigator.serviceWorker
+        .register('/sw.js', { updateViaCache: 'none' })
+        .then((registration) => registration.update())
+        .catch(() => {});
+    }
     return () => {
       window.removeEventListener('online', update);
       window.removeEventListener('offline', update);
       window.removeEventListener('beforeinstallprompt', prompt);
+      if ('serviceWorker' in navigator)
+        navigator.serviceWorker.removeEventListener(
+          'controllerchange',
+          activateUpdate,
+        );
     };
   }, []);
   return (
@@ -31,7 +53,8 @@ export function PWA() {
       {offline && (
         <div className="offline-banner" role="status">
           <WifiOff size={17} />
-          Нет сети. Изменения сохраняются на устройстве; синхронизация продолжится после подключения.
+          Нет сети. Изменения сохраняются на устройстве; синхронизация
+          продолжится после подключения.
         </div>
       )}
       {install && !offline && (

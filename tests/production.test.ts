@@ -57,3 +57,10 @@ test('detected page presents a one-payment subscription candidate for review', (
   );
   assert.match(importSource, /outcome\.kind === 'pending_candidate'/);
 });
+
+test('PWA activates new application code instead of keeping a stale bundle', () => {
+  const source = readFileSync('components/product/pwa.tsx', 'utf8');
+  assert.match(source, /updateViaCache: 'none'/);
+  assert.match(source, /controllerchange/);
+  assert.match(source, /window\.location\.reload\(\)/);
+});
