@@ -191,8 +191,12 @@ export function detectRecurring(
           subscriptionConfidence:
             service?.merchantClass === 'subscription' ||
             service?.category === 'subscription'
-              ? 0.45
+              ? Math.max(
+                  0.9,
+                  ...rows.map((row) => row.serviceMatchConfidence ?? 0),
+                )
               : 0.1,
+          periodConfidence: 0.2,
           confidence: 0.4,
           createdAt: now,
           updatedAt: now,
@@ -248,7 +252,13 @@ export function detectRecurring(
       const subscriptionConfidence =
         service?.merchantClass === 'subscription' ||
         service?.category === 'subscription'
-          ? Math.min(0.99, recurringConfidence + 0.08)
+          ? Math.min(
+              0.99,
+              Math.max(
+                recurringConfidence + 0.08,
+                ...chain.map((row) => row.serviceMatchConfidence ?? 0),
+              ),
+            )
           : service?.merchantClass === 'regular_bill' ||
               service?.merchantClass === 'bank_service'
             ? 0.1
@@ -268,6 +278,10 @@ export function detectRecurring(
         source: 'bank-import',
         recurringConfidence,
         subscriptionConfidence,
+        periodConfidence: Math.min(
+          0.98,
+          recurringConfidence + (chain.length >= 3 ? 0.08 : 0),
+        ),
         confidence: recurringConfidence,
         createdAt: now,
         updatedAt: now,

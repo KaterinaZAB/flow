@@ -35,6 +35,7 @@ const expense = z
       .optional(),
     recurringConfidence: z.number().min(0).max(1).optional(),
     subscriptionConfidence: z.number().min(0).max(1).optional(),
+    periodConfidence: z.number().min(0).max(1).optional(),
     confidence: z.number().min(0).max(1).nullable(),
     createdAt: z.string().datetime(),
     updatedAt: z.string().datetime(),
@@ -55,6 +56,8 @@ const transaction = z
       .regex(/^\d{5,6}$/)
       .optional(),
     rawDescription: z.string().max(1000).optional(),
+    serviceMatchConfidence: z.number().min(0).max(1).optional(),
+    transactionConfidence: z.number().min(0).max(1).optional(),
     parseConfidence: z.number().min(0).max(1).optional(),
     parseReviewReasons: z.array(z.string().max(80)).max(10).optional(),
     normalizedMerchant: z.string().max(240),

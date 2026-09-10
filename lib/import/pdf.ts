@@ -17,10 +17,11 @@ import {
   type BankStatementProfile,
 } from './pdf/profiles.ts';
 import {
-  canParseModernSber,
-  parseModernSberStatement,
+  assemblePdfTransactions,
+  type PdfAssemblyDebug,
   type StatementReconciliation,
-} from './pdf/sber.ts';
+} from './pdf/assembler.ts';
+import { cleanPdfMerchantText } from './pdf/entities.ts';
 export type ParseReviewReason =
   | 'multiple_amount_candidates'
   | 'merchant_missing'
@@ -47,6 +48,8 @@ export type PdfRow = {
   merchantConfidence?: number;
   amountConfidence?: number;
   directionConfidence?: number;
+  transactionConfidence?: number;
+  serviceMatchConfidence?: number;
   parseConfidence?: number;
   reviewReasons?: ParseReviewReason[];
   selected: boolean;
@@ -59,9 +62,10 @@ export type PdfPreview = {
   transactionBlocks?: number;
   ignoredBlocks?: number;
   reviewCount?: number;
-  statementFormat?: 'sber-modern' | 'generic';
+  statementFormat?: 'universal';
   reconciliation?: StatementReconciliation;
   period?: { from: string; to: string };
+  debug?: PdfAssemblyDebug[];
   warnings: string[];
 };
 export type PdfCell = PdfTextItem;
@@ -102,20 +106,7 @@ function semanticText(text: string) {
 }
 
 export function cleanMerchantText(text: string): string {
-  return semanticText(text)
-    .replace(
-      /(?:[.,]\s*)?(?:операция\s+по\s+карте|карта|card)\s+\*{2,}\d{2,}.*$/i,
-      '',
-    )
-    .replace(
-      /(?:[.,]\s*)?(?:оплата\s+товаров\s+и\s+услуг|оплата\s+покупки)\s*$/i,
-      '',
-    )
-    .replace(/^(?:purchase|payment)$/i, '')
-    .replace(/[.,;:\s]+$/g, '')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 240);
+  return cleanPdfMerchantText(text);
 }
 
 const reviewReasonText: Record<ParseReviewReason, string> = {
@@ -145,6 +136,16 @@ export function pdfRowReviewReason(row: PdfRow): string | null {
   if ((row.parseConfidence ?? 1) < 0.72)
     return reviewReasonText[row.reviewReasons?.[0] ?? 'unknown_layout'];
   return null;
+}
+export function pdfRowImportable(row: PdfRow) {
+  if (row.direction === 'unknown' || !validDate(row.date)) return false;
+  if (row.merchant.trim().length < 2) return false;
+  try {
+    if (!parseMinor(row.amount)) return false;
+  } catch {
+    return false;
+  }
+  return currencies.includes(row.currency.toUpperCase() as never);
 }
 function isoDate(s: string) {
   if (s.includes('-')) return s;
@@ -598,6 +599,7 @@ export function parsePdfPage(
 export async function extractPdf(
   bytes: Uint8Array,
   currency = 'RUB',
+  options: { debug?: boolean } = {},
 ): Promise<PdfPreview> {
   if (bytes.byteLength > 5 * 1024 * 1024)
     throw new Error('PDF должен быть не больше 5 МБ.');
@@ -662,54 +664,58 @@ export async function extractPdf(
         'В PDF нет текстового слоя: вероятно, это скан. Скачайте исходную электронную выписку из банка. Распознавание изображений пока не поддерживается.',
       );
     const pageLines = pageCells.map((cells) => groupItemsIntoLines(cells));
-    const sberScore = canParseModernSber(pageLines.flat());
-    let transactionBlocks: number | undefined,
-      ignoredBlocks: number | undefined,
-      reconciliation: StatementReconciliation | undefined,
-      period: PdfPreview['period'],
-      statementFormat: PdfPreview['statementFormat'] = 'generic';
-    if (sberScore >= 0.67) {
-      const parsed = parseModernSberStatement(pageLines);
-      statementFormat = 'sber-modern';
-      transactionBlocks = parsed.transactionBlocks;
-      ignoredBlocks = parsed.ignoredBlocks;
-      reconciliation = parsed.reconciliation;
-      period = parsed.period;
-      skipped = parsed.ignoredBlocks;
-      rows = parsed.transactions.map((transaction, index) => {
-        const row: PdfRow = {
-          id: `sber-${index}`,
-          date: transaction.date,
-          time: transaction.time,
-          processedAt: transaction.processedAt,
-          authorizationCode: transaction.authorizationCode,
-          merchant: transaction.merchant,
-          rawDescription: transaction.rawDescription,
-          bankCategory: transaction.bankCategory,
-          balanceAfterMinor: transaction.balanceAfterMinor,
-          amount: String(transaction.amountMinor / 100),
-          currency: transaction.currency,
-          direction: transaction.direction,
-          dateConfidence: transaction.time ? 0.99 : 0.75,
-          merchantConfidence: transaction.merchant ? 0.98 : 0.2,
-          amountConfidence: 0.99,
-          directionConfidence: 0.99,
-          parseConfidence: transaction.parseConfidence,
-          reviewReasons: transaction.reviewReasons as ParseReviewReason[],
-          selected: false,
-        };
-        row.selected = row.direction === 'expense' && !pdfRowReviewReason(row);
-        return row;
-      });
-    } else {
-      for (const [index, cells] of pageCells.entries()) {
-        const parsed = parsePdfPage(cells, currency, index + 1);
-        rows.push(...parsed.rows);
-        skipped += parsed.skipped;
-      }
-      transactionBlocks = rows.length + skipped;
-      ignoredBlocks = skipped;
-    }
+    const profile = selectBankProfile(
+      pageLines
+        .flat()
+        .map((line) => line.text)
+        .join('\n'),
+    );
+    const assembled = assemblePdfTransactions(pageLines, profile, options);
+    const transactionBlocks = assembled.transactionBlocks;
+    const ignoredBlocks = assembled.ignoredBlocks;
+    const reconciliation: StatementReconciliation = assembled.reconciliation;
+    const period = assembled.period;
+    const statementFormat: PdfPreview['statementFormat'] = 'universal';
+    skipped = ignoredBlocks;
+    rows = assembled.transactions.map((transaction, index) => {
+      const row: PdfRow = {
+        id: `pdf-${index}`,
+        date: transaction.date,
+        time: transaction.time,
+        processedAt: transaction.processedAt,
+        authorizationCode: transaction.authorizationCode,
+        merchant: transaction.merchant,
+        rawDescription: transaction.rawDescription,
+        bankCategory: transaction.bankCategory,
+        balanceAfterMinor: transaction.balanceAfterMinor,
+        amount: transaction.amountMinor
+          ? String(transaction.amountMinor / 100)
+          : '',
+        currency: transaction.currency || currency,
+        direction: transaction.direction,
+        dateConfidence: transaction.dateConfidence,
+        merchantConfidence: transaction.merchantConfidence,
+        amountConfidence: transaction.amountConfidence,
+        directionConfidence: transaction.directionConfidence,
+        transactionConfidence: transaction.transactionConfidence,
+        serviceMatchConfidence: transaction.serviceMatchConfidence,
+        parseConfidence: transaction.transactionConfidence,
+        reviewReasons: transaction.reviewReasons as ParseReviewReason[],
+        selected: false,
+      };
+      const knownService = (row.serviceMatchConfidence ?? 0) >= 0.85;
+      row.selected =
+        row.direction === 'expense' &&
+        pdfRowImportable(row) &&
+        (knownService ||
+          ((row.transactionConfidence ?? 0) >= 0.78 &&
+            !(row.reviewReasons ?? []).some((reason) =>
+              ['multiple_amount_candidates', 'merchant_missing'].includes(
+                reason,
+              ),
+            )));
+      return row;
+    });
     if (rows.length > 1000)
       throw new Error(
         'В PDF больше 1 000 операций. Загрузите выписку за более короткий период.',
@@ -725,7 +731,7 @@ export async function extractPdf(
       warnings.push(
         'У части строк не определено направление. Укажите расход или поступление вручную.',
       );
-    if (skipped && statementFormat === 'generic')
+    if (skipped)
       warnings.push(
         'Пропущено строк с датами: ' +
           skipped +
@@ -757,6 +763,7 @@ export async function extractPdf(
       statementFormat,
       reconciliation,
       period,
+      debug: assembled.debug,
       warnings,
     };
   } finally {
@@ -779,6 +786,8 @@ export function pdfRowsToTable(rows: unknown): string[][] {
       'currency',
       'direction',
       'parseConfidence',
+      'transactionConfidence',
+      'serviceMatchConfidence',
       'parseReviewReasons',
     ],
     ...rows
@@ -807,6 +816,12 @@ export function pdfRowsToTable(rows: unknown): string[][] {
           r.direction,
           typeof r.parseConfidence === 'number'
             ? String(r.parseConfidence)
+            : '',
+          typeof r.transactionConfidence === 'number'
+            ? String(r.transactionConfidence)
+            : '',
+          typeof r.serviceMatchConfidence === 'number'
+            ? String(r.serviceMatchConfidence)
             : '',
           Array.isArray(r.reviewReasons) ? r.reviewReasons.join(',') : '',
         ];

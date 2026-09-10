@@ -26,7 +26,7 @@ export const services: Service[] = [
         confidence: 0.99,
       },
       {
-        pattern: '^YANDEX\\*\\d{4}\\*PLUS(?:\\s|$)',
+        pattern: '^YANDEX\\s*\\*\\s*\\d{3,8}\\s*\\*\\s*PLUS(?:\\s|$)',
         matchType: 'regex',
         provenance: 'observed-sber',
         confidence: 0.99,
@@ -400,26 +400,36 @@ export function normalizedText(merchant: string) {
     .trim()
     .replace(/\s+/g, ' ');
 }
-export function findService(merchant: string) {
+export function matchService(merchant: string) {
   const normalized = normalizedText(merchant);
-  return services.find((s) => {
-    if (s.aliases)
-      return s.aliases.some((alias) => {
+  for (const service of services) {
+    if (service.aliases) {
+      const alias = service.aliases.find((candidate) => {
         const pattern =
-          alias.matchType === 'regex'
-            ? alias.pattern
-            : normalizedText(alias.pattern);
-        if (alias.matchType === 'regex')
+          candidate.matchType === 'regex'
+            ? candidate.pattern
+            : normalizedText(candidate.pattern);
+        if (candidate.matchType === 'regex')
           return new RegExp(pattern, 'i').test(merchant);
-        if (alias.matchType === 'exact') return normalized === pattern;
-        if (alias.matchType === 'contains') return normalized.includes(pattern);
+        if (candidate.matchType === 'exact') return normalized === pattern;
+        if (candidate.matchType === 'contains')
+          return normalized.includes(pattern);
         return normalized === pattern || normalized.startsWith(pattern + ' ');
       });
-    return s.merchantAliases.some((a) => {
-      const alias = normalizedText(a);
-      return normalized === alias || normalized.startsWith(alias + ' ');
+      if (alias) return { service, confidence: alias.confidence, alias };
+      continue;
+    }
+    const alias = service.merchantAliases.find((candidate) => {
+      const pattern = normalizedText(candidate);
+      return normalized === pattern || normalized.startsWith(pattern + ' ');
     });
-  });
+    if (alias) return { service, confidence: 0.9, alias: undefined };
+  }
+  return undefined;
+}
+
+export function findService(merchant: string) {
+  return matchService(merchant)?.service;
 }
 
 export function merchantBehavior(merchant: string) {

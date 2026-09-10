@@ -12,6 +12,7 @@ import {
   mergeNearbyTextItems,
 } from '../lib/import/pdf/layout.ts';
 import { parseStatement } from '../lib/import/parse.ts';
+import { detectRecurring } from '../lib/domain/detection.ts';
 import { makePdf, fixtureLines } from './pdf-fixture.ts';
 test('real PDF bytes: extracts dates, merchant and debit, not balance', async () => {
   const p = await extractPdf(makePdf(fixtureLines()));
@@ -106,6 +107,8 @@ test('ambiguous PDF rows stay available but are excluded by default', () => {
       'currency',
       'direction',
       'parseConfidence',
+      'transactionConfidence',
+      'serviceMatchConfidence',
       'parseReviewReasons',
     ],
   ]);
@@ -208,4 +211,81 @@ test('equally plausible amounts require review and stay out of automatic import'
   assert.ok(row.reviewReasons?.includes('multiple_amount_candidates'));
   assert.equal(row.selected, false);
   assert.equal(pdfRowsToTable([row]).length, 1);
+});
+
+test('universal PDF pipeline assembles shifted multiline services and ignores balance', async () => {
+  const lines = [
+    { text: 'Date', x: 40, y: 750 },
+    { text: 'Category', x: 140, y: 750 },
+    { text: 'Description', x: 230, y: 750 },
+    { text: 'Amount', x: 410, y: 750 },
+    { text: 'Balance', x: 500, y: 750 },
+  ];
+  const variants = [
+    'YANDEX*1234*PLUS MOSCOW RUS. Card ****0000',
+    'YANDEX * 5678 * PLUS MOSCOW RUS. Card ****0000',
+    'YANDEX*90123*PLUS MOSCOW RUS. Card ****0000',
+  ];
+  for (let index = 0; index < variants.length; index++) {
+    const y = 700 - index * 70;
+    lines.push(
+      { text: `21.0${index + 6}.2026`, x: 40, y },
+      { text: 'Other', x: 140, y: y + 1.8 },
+      { text: '249.00', x: 420, y: y - 1.6 },
+      { text: `${20_000 - index * 249}.00`, x: 500, y: y + 1.2 },
+      { text: `22.0${index + 6}.2026`, x: 40, y: y - 13 },
+      { text: `${654235 + index}`, x: 105, y: y - 12.2 },
+      { text: variants[index], x: 230, y: y - 14.5 },
+    );
+  }
+  const bytes = makePdf(lines);
+  const preview = await extractPdf(bytes, 'RUB', { debug: true });
+  assert.equal(preview.statementFormat, 'universal');
+  assert.equal(preview.rows.length, 3);
+  assert.equal(preview.rows[0].amount, '249');
+  assert.equal(preview.rows[0].balanceAfterMinor, 2_000_000);
+  assert.equal(preview.rows[0].merchant, 'YANDEX*1234*PLUS MOSCOW RUS');
+  assert.equal(preview.rows[0].serviceMatchConfidence, 0.99);
+  assert.equal(preview.rows[0].selected, true);
+  assert.ok(preview.debug?.[0].amountCandidates.length === 2);
+
+  const parsed = await parseStatement(makePdf(lines), 'universal.pdf', 'i', {
+    currency: 'RUB',
+    pdfRows: preview.rows,
+  });
+  assert.equal(parsed.transactions.length, 3);
+  assert.ok(
+    parsed.transactions.every(
+      (transaction) => transaction.normalizedMerchant === 'service:yandex-plus',
+    ),
+  );
+  const candidates = detectRecurring(parsed.transactions, 'i', '2026-08-22');
+  assert.equal(candidates.length, 1);
+  assert.equal(candidates[0].expense.serviceId, 'yandex-plus');
+  assert.equal(candidates[0].expense.amountMinor, 24900);
+});
+
+test('one known subscription survives date review and becomes a low-recurrence candidate', async () => {
+  const lines = [
+    { text: 'Date', x: 40, y: 750 },
+    { text: 'Description', x: 220, y: 750 },
+    { text: 'Amount', x: 410, y: 750 },
+    { text: 'Balance', x: 500, y: 750 },
+    { text: '09.09.2026', x: 40, y: 700 },
+    { text: '249.00', x: 420, y: 698 },
+    { text: '29592.92', x: 500, y: 701 },
+    { text: 'YANDEX * 4321 * PLUS MOSCOW RUS', x: 220, y: 686 },
+  ];
+  const preview = await extractPdf(makePdf(lines));
+  assert.equal(preview.rows[0].selected, true);
+  assert.ok(preview.rows[0].reviewReasons?.includes('date_uncertain'));
+  const parsed = await parseStatement(makePdf(lines), 'single.pdf', 'i', {
+    currency: 'RUB',
+    pdfRows: preview.rows,
+  });
+  const [candidate] = detectRecurring(parsed.transactions, 'i', '2026-09-10');
+  assert.equal(candidate.expense.serviceId, 'yandex-plus');
+  assert.ok((candidate.expense.subscriptionConfidence ?? 0) >= 0.9);
+  assert.equal(candidate.expense.recurringConfidence, 0.4);
+  assert.equal(candidate.expense.periodConfidence, 0.2);
 });

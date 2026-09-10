@@ -21,6 +21,8 @@ export type ImportOptions = {
     processedAt?: number;
     authorizationCode?: number;
     rawDescription?: number;
+    serviceMatchConfidence?: number;
+    transactionConfidence?: number;
     parseConfidence?: number;
     parseReviewReasons?: number;
   };
@@ -69,6 +71,8 @@ const aliases = {
   processedAt: ['processedat', 'датаобработки'],
   authorizationCode: ['authorizationcode', 'кодавторизации'],
   rawDescription: ['rawdescription', 'исходноеописание'],
+  serviceMatchConfidence: ['servicematchconfidence'],
+  transactionConfidence: ['transactionconfidence'],
   parseConfidence: ['parseconfidence'],
   parseReviewReasons: ['parsereviewreasons'],
 };
@@ -268,6 +272,26 @@ export async function parseStatement(
           ? {
               rawDescription:
                 (row[mapping.rawDescription] ?? '').trim() || undefined,
+            }
+          : {}),
+        ...(mapping.serviceMatchConfidence !== undefined &&
+        mapping.serviceMatchConfidence >= 0
+          ? {
+              serviceMatchConfidence:
+                Number(row[mapping.serviceMatchConfidence]) >= 0 &&
+                Number(row[mapping.serviceMatchConfidence]) <= 1
+                  ? Number(row[mapping.serviceMatchConfidence])
+                  : undefined,
+            }
+          : {}),
+        ...(mapping.transactionConfidence !== undefined &&
+        mapping.transactionConfidence >= 0
+          ? {
+              transactionConfidence:
+                Number(row[mapping.transactionConfidence]) >= 0 &&
+                Number(row[mapping.transactionConfidence]) <= 1
+                  ? Number(row[mapping.transactionConfidence])
+                  : undefined,
             }
           : {}),
         ...(mapping.parseConfidence !== undefined &&

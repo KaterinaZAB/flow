@@ -1,6 +1,7 @@
 'use client';
 import { useState } from 'react';
 import {
+  pdfRowImportable,
   pdfRowReviewReason,
   type PdfPreview,
   type PdfRow,
@@ -36,7 +37,7 @@ export function PdfReview({
   const selected = preview.rows.filter((row) => row.selected);
   const reviewRows = preview.rows.filter((row) => pdfRowReviewReason(row));
   const reviewCount = reviewRows.length;
-  const unresolved = selected.some((row) => pdfRowReviewReason(row));
+  const unresolved = selected.some((row) => !pdfRowImportable(row));
   const visibleRows = reviewOnly ? reviewRows : preview.rows;
   const edit = (id: string, change: Partial<PdfRow>) =>
     onChange(
@@ -105,8 +106,8 @@ export function PdfReview({
           <div>
             <strong>Есть операции, которые стоит проверить</strong>
             <p>
-              {reviewCount} операций требуют дополнительной проверки. Они не
-              будут учтены автоматически.
+              {reviewCount} операций содержат неоднозначные поля. Сильные
+              сигналы останутся в результате с предупреждением.
             </p>
           </div>
           {reviewRows.length > 0 && (

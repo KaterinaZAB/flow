@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseModernSberStatement } from '../lib/import/pdf/sber.ts';
+import { assemblePdfTransactions } from '../lib/import/pdf/assembler.ts';
+import {
+  genericBankProfile,
+  modernSberHints,
+} from '../lib/import/pdf/profiles.ts';
 import {
   findService,
   merchantBehavior,
@@ -11,7 +15,10 @@ import type { Transaction } from '../lib/domain/types.ts';
 import { anonymizedSberModernFixture } from './fixtures/sber-modern.ts';
 
 test('anonymized six-page Sber statement reconciles all 109 transaction blocks', () => {
-  const parsed = parseModernSberStatement(anonymizedSberModernFixture());
+  const parsed = assemblePdfTransactions(
+    anonymizedSberModernFixture(),
+    modernSberHints,
+  );
   const accepted = parsed.transactions.filter(
     (transaction) => !transaction.reviewReasons.length,
   ).length;
@@ -31,7 +38,10 @@ test('anonymized six-page Sber statement reconciles all 109 transaction blocks',
 });
 
 test('Sber rows keep operation and processing dates separate', () => {
-  const parsed = parseModernSberStatement(anonymizedSberModernFixture());
+  const parsed = assemblePdfTransactions(
+    anonymizedSberModernFixture(),
+    modernSberHints,
+  );
   const music = parsed.transactions.find((transaction) =>
     transaction.merchant.startsWith('VK*VK MUSIC'),
   );
@@ -43,8 +53,18 @@ test('Sber rows keep operation and processing dates separate', () => {
   assert.equal(findService(music.merchant)?.id, 'vk-music');
 });
 
+test('bank hints are optional for the universal assembler', () => {
+  const parsed = assemblePdfTransactions(
+    anonymizedSberModernFixture(),
+    genericBankProfile,
+  );
+  assert.equal(parsed.transactionBlocks, 109);
+  assert.equal(parsed.transactions.length, 109);
+  assert.equal(parsed.reconciliation.status, 'exact');
+});
+
 test('specific subscription aliases do not capture unrelated Yandex or YM merchants', () => {
-  assert.equal(findService('YANDEX*5815*PLUS')?.id, 'yandex-plus');
+  assert.equal(findService('YANDEX*8642*PLUS')?.id, 'yandex-plus');
   assert.equal(findService('YANDEX*MARKET'), undefined);
   assert.equal(findService('YANDEX*GO'), undefined);
   assert.equal(findService('YM*OKKO MOSCOW RUS')?.id, 'okko');

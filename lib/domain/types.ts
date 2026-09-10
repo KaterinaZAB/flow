@@ -54,6 +54,8 @@ export type RecurringExpense = {
   recurringConfidence?: number;
   /** Probability that the merchant represents a subscription rather than another regular bill. */
   subscriptionConfidence?: number;
+  /** Probability that the inferred billing period is correct. */
+  periodConfidence?: number;
   /** Legacy persisted recurring confidence, retained for workspace compatibility. */
   confidence: number | null;
   createdAt: string;
@@ -67,6 +69,8 @@ export type Transaction = {
   processedAt?: string;
   authorizationCode?: string;
   rawDescription?: string;
+  serviceMatchConfidence?: number;
+  transactionConfidence?: number;
   parseConfidence?: number;
   parseReviewReasons?: string[];
   normalizedMerchant: string;

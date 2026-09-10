@@ -26,7 +26,7 @@ export function anonymizedSberModernFixture() {
       merchant:
         [
           'VK*VK MUSIC MOSCOW RUS',
-          'YANDEX*5815*PLUS',
+          'YANDEX*4827*PLUS',
           'YM*OKKO MOSCOW RUS',
           'CP* START.RU MOSKVA RUS',
           'TUTU4 MOSCOW RUS',
