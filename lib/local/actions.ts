@@ -4,6 +4,32 @@ import { parseStatement, MappingError } from '../import/parse.ts';
 import { extractPdf } from '../import/pdf.ts';
 import { detectRecurring } from '../domain/detection.ts';
 import { today } from '../domain/calendar.ts';
+import { findService } from '../domain/catalog.ts';
+import type { Candidate } from '../domain/types.ts';
+
+function candidateKey(candidate: Candidate) {
+  return [
+    candidate.expense.serviceId ?? candidate.expense.name.toLowerCase(),
+    candidate.expense.amountMinor,
+    candidate.expense.currency,
+    candidate.expense.billingPeriod,
+  ].join('|');
+}
+
+function sameEvidence(a: Candidate, b: Candidate) {
+  return a.transactionIds.some((id) => b.transactionIds.includes(id));
+}
+
+function uniqueCandidates(candidates: Candidate[]) {
+  return candidates.filter(
+    (candidate, index) =>
+      candidates.findIndex(
+        (other) =>
+          candidateKey(other) === candidateKey(candidate) &&
+          sameEvidence(other, candidate),
+      ) === index,
+  );
+}
 /** Local command adapter for existing forms. Response objects are in-memory results, never HTTP requests. */
 export async function localCommand(path: string, options: RequestInit = {}) {
   try {
@@ -101,7 +127,11 @@ export async function localCommand(path: string, options: RequestInit = {}) {
             : undefined,
         });
       let added = 0,
-        count = 0;
+        count = 0,
+        repeatedImport = false,
+        confirmedCandidateCount = 0,
+        rejectedCandidateCount = 0,
+        knownServiceCount = 0;
       await updateWorkspace((state) => {
         const existing = new Set(
           state.transactions.map((t) => t.fingerprint + ':' + t.occurrence),
@@ -123,11 +153,35 @@ export async function localCommand(path: string, options: RequestInit = {}) {
           );
           return persisted ? [persisted] : [];
         });
+        repeatedImport = added === 0;
+        const importedIds = new Set(
+          importedRows.map((transaction) => transaction.id),
+        );
+        const importedServices = new Set(
+          importedRows.flatMap((transaction) => {
+            const service = findService(transaction.originalMerchant);
+            return service ? [service.id] : [];
+          }),
+        );
+        knownServiceCount = importedServices.size;
         // Detect across imports, but retain confirmed/rejected decisions and avoid linked evidence.
+        const finalized = state.candidates.filter(
+          (c) => c.decision !== 'pending',
+        );
+        const relatedFinalized = finalized.filter(
+          (candidate) =>
+            candidate.transactionIds.some((id) => importedIds.has(id)) ||
+            (!!candidate.expense.serviceId &&
+              importedServices.has(candidate.expense.serviceId)),
+        );
+        confirmedCandidateCount = relatedFinalized.filter(
+          (candidate) => candidate.decision === 'confirmed',
+        ).length;
+        rejectedCandidateCount = relatedFinalized.filter(
+          (candidate) => candidate.decision === 'rejected',
+        ).length;
         const used = new Set(
-          state.candidates
-            .filter((c) => c.decision !== 'pending')
-            .flatMap((c) => c.transactionIds),
+          finalized.flatMap((candidate) => candidate.transactionIds),
         );
         state.candidates = state.candidates.filter(
           (c) => c.decision !== 'pending',
@@ -139,30 +193,21 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         // contain old imported rows or dismissed candidates, but it must never
         // hide a newly found known subscription. On a repeated upload these
         // are the persisted rows, so a candidate still links to real evidence.
-        const detected = [
+        const detected = uniqueCandidates([
           ...detectRecurring(eligible, id, today()),
           ...(importedRows.length
-            ? detectRecurring(importedRows, id, today())
+            ? detectRecurring(
+                importedRows.filter((transaction) => !used.has(transaction.id)),
+                id,
+                today(),
+              )
             : []),
-        ].filter((candidate, index, all) => {
-          const key = [
-            candidate.expense.serviceId ?? candidate.expense.name.toLowerCase(),
-            candidate.expense.amountMinor,
-            candidate.expense.currency,
-            candidate.expense.billingPeriod,
-          ].join('|');
-          return (
-            all.findIndex((other) => {
-              const otherKey = [
-                other.expense.serviceId ?? other.expense.name.toLowerCase(),
-                other.expense.amountMinor,
-                other.expense.currency,
-                other.expense.billingPeriod,
-              ].join('|');
-              return otherKey === key;
-            }) === index
-          );
-        });
+        ]).filter(
+          (candidate) =>
+            !finalized.some(
+              (existing) => candidateKey(existing) === candidateKey(candidate),
+            ),
+        );
         state.candidates.push(...detected);
         count = detected.length;
         state.imports.unshift({
@@ -184,6 +229,10 @@ export async function localCommand(path: string, options: RequestInit = {}) {
         skippedCount: result.skipped + result.transactions.length - added,
         warnings: result.warnings,
         candidateCount: count,
+        repeatedImport,
+        confirmedCandidateCount,
+        rejectedCandidateCount,
+        knownServiceCount,
       });
     }
     if (path === '/candidates') {

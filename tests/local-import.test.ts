@@ -59,8 +59,10 @@ test('reviewed PDF import creates known-subscription candidates in local storage
   });
   const repeated = (await repeatedResponse.json()) as {
     candidateCount: number;
+    repeatedImport: boolean;
   };
   assert.equal(repeated.candidateCount, 1);
+  assert.equal(repeated.repeatedImport, true);
   const repeatedWorkspace = await readWorkspace();
   assert.equal(repeatedWorkspace.transactions.length, 2);
   assert.equal(repeatedWorkspace.candidates.length, 1);
@@ -70,4 +72,55 @@ test('reviewed PDF import creates known-subscription candidates in local storage
     ),
     true,
   );
+
+  await localCommand('/candidates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ids: [repeatedWorkspace.candidates[0].id],
+      decision: 'confirmed',
+    }),
+  });
+  const confirmedResponse = await localCommand('/imports', {
+    method: 'POST',
+    body: importForm,
+  });
+  const confirmed = (await confirmedResponse.json()) as {
+    candidateCount: number;
+    confirmedCandidateCount: number;
+    repeatedImport: boolean;
+  };
+  assert.equal(confirmed.candidateCount, 0);
+  assert.equal(confirmed.confirmedCandidateCount, 1);
+  assert.equal(confirmed.repeatedImport, true);
+
+  await clearWorkspace();
+  const rejectedFirstResponse = await localCommand('/imports', {
+    method: 'POST',
+    body: importForm,
+  });
+  assert.equal(
+    ((await rejectedFirstResponse.json()) as { candidateCount: number })
+      .candidateCount,
+    1,
+  );
+  const rejectedFirstWorkspace = await readWorkspace();
+  await localCommand('/candidates', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      ids: [rejectedFirstWorkspace.candidates[0].id],
+      decision: 'rejected',
+    }),
+  });
+  const rejectedResponse = await localCommand('/imports', {
+    method: 'POST',
+    body: importForm,
+  });
+  const rejected = (await rejectedResponse.json()) as {
+    candidateCount: number;
+    rejectedCandidateCount: number;
+  };
+  assert.equal(rejected.candidateCount, 0);
+  assert.equal(rejected.rejectedCandidateCount, 1);
 });

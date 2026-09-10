@@ -21,6 +21,10 @@ type Result = {
   skippedCount: number;
   warnings: string[];
   candidateCount?: number;
+  repeatedImport?: boolean;
+  confirmedCandidateCount?: number;
+  rejectedCandidateCount?: number;
+  knownServiceCount?: number;
   candidates?: Candidate[];
   transactions?: Transaction[];
 };
@@ -157,11 +161,37 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
           {result ? (
             <div className="import-success">
               <CheckCircle2 size={44} />
-              <h2>Регулярные расходы не найдены</h2>
+              <h2>
+                {result.repeatedImport
+                  ? 'Эта выписка уже была импортирована'
+                  : 'Регулярные расходы не найдены'}
+              </h2>
               <p>
-                Мы проанализировали {result.analyzedCount} операций, но не нашли
-                достаточно уверенных повторяющихся платежей.
+                {result.repeatedImport
+                  ? 'Мы повторно проверили ранее найденные операции и не добавили дубликаты.'
+                  : 'Мы проанализировали ' +
+                    result.analyzedCount +
+                    ' операций, но не нашли достаточно уверенных повторяющихся платежей.'}
               </p>
+              {result.confirmedCandidateCount ? (
+                <p className="import-hint">
+                  {result.confirmedCandidateCount === 1
+                    ? 'Похожий расход уже подтверждён и учтён в вашем обзоре.'
+                    : 'Похожие расходы уже подтверждены и учтены в вашем обзоре.'}
+                </p>
+              ) : result.rejectedCandidateCount ? (
+                <p className="import-hint">
+                  {result.rejectedCandidateCount === 1
+                    ? 'Похожий расход был ранее отклонён и не будет добавлен автоматически.'
+                    : 'Похожие расходы были ранее отклонены и не будут добавлены автоматически.'}
+                </p>
+              ) : result.knownServiceCount ? (
+                <p className="import-hint">
+                  Мы нашли известный сервис, но не смогли создать новый
+                  кандидат. Проверьте операции или повторите анализ после
+                  обновления страницы.
+                </p>
+              ) : null}
               {result.warnings.length > 0 && (
                 <details>
                   <summary>Подробнее о распознавании</summary>
@@ -182,7 +212,9 @@ export function ImportForm({ imports }: { imports: TransactionImport[] }) {
                   Загрузить выписку за больший период
                 </button>
                 <a className="secondary-button" href="/expenses">
-                  Добавить расход вручную
+                  {result.confirmedCandidateCount
+                    ? 'Открыть расходы'
+                    : 'Добавить расход вручную'}
                 </a>
               </div>
             </div>
