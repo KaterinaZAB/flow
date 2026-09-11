@@ -17,7 +17,6 @@ import {
   Repeat2,
   UploadCloud,
   Sparkles,
-  Settings2,
   UserRound,
   Waves,
 } from 'lucide-react';
@@ -54,11 +53,9 @@ const navigation = [
 export function Shell({
   children,
   active,
-  userName,
 }: {
   children: ReactNode;
   active: string;
-  userName?: string;
 }) {
   return (
     <SidebarProvider>
@@ -89,22 +86,13 @@ export function Shell({
         </SidebarContent>
         <SidebarFooter>
           <SidebarMenuButton
-            render={<a href="/settings" aria-label="Настройки" />}
+            render={<a href="/settings" aria-label="Ваш Поток" />}
             isActive={active === 'settings'}
             className="nav-item"
           >
-            <Settings2 size={19} />
-            Настройки
+            <UserRound size={19} />
+            Ваш Поток
           </SidebarMenuButton>
-          <a className="profile" href="/settings/sync">
-            <span className="avatar">
-              {userName?.[0]?.toUpperCase() || 'П'}
-            </span>
-            <span>
-              <strong>Ваш Поток</strong>
-              <small>Хранение и синхронизация</small>
-            </span>
-          </a>
         </SidebarFooter>
       </Sidebar>
       <div className="app-surface">
@@ -117,14 +105,14 @@ export function Shell({
           </a>
           <a
             href="/settings"
-            aria-label="Профиль и настройки"
+            aria-label="Ваш Поток"
+            aria-current={active === 'settings' ? 'page' : undefined}
             className="mobile-profile"
           >
             <span className="avatar">
               <UserRound size={19} />
             </span>
-            <span>Профиль</span>
-            <Settings2 size={14} aria-hidden="true" />
+            <span>Ваш Поток</span>
           </a>
         </header>
         <main className="main-content">{children}</main>

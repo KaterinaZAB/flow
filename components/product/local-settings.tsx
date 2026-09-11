@@ -1,7 +1,12 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { Input } from '@/components/ui/input';
-import { SelectField } from './select-field';
+import {
+  GeneralSettings,
+  DataSettings,
+  DataSources,
+  AboutFlow,
+} from './settings-sections';
 import {
   Dialog,
   DialogContent,
@@ -70,6 +75,16 @@ export function LocalSettings({
         if (d && !d.acknowledged) void showRecovery().then(setKey);
       });
   }, []);
+  useEffect(() => {
+    const section =
+      window.location.pathname === '/settings/sync'
+        ? 'sync'
+        : window.location.pathname === '/settings/sources'
+          ? 'sources'
+          : null;
+    if (section)
+      document.getElementById(section)?.scrollIntoView({ block: 'start' });
+  }, []);
   async function run(fn: () => Promise<unknown>) {
     setBusy(true);
     setError('');
@@ -101,7 +116,7 @@ export function LocalSettings({
         });
       }
       if (confirm === 'restore') {
-        await restore(input, backup);
+        await restore(input, restoreMethod === 'backup' ? backup : undefined);
         setInput('');
         setBackup(undefined);
       }
@@ -114,8 +129,8 @@ export function LocalSettings({
     <>
       <div className="page-heading">
         <div>
-          <h1>Хранение и синхронизация</h1>
-          <p>Ваши данные — на вашем устройстве.</p>
+          <h1>Ваш Поток</h1>
+          <p>Настройки, данные и защищённая синхронизация</p>
         </div>
       </div>
       {error && (
@@ -124,14 +139,30 @@ export function LocalSettings({
         </p>
       )}
       <div className="settings-stack">
-        <section className="panel settings-panel">
-          <h2>
+        <GeneralSettings
+          state={state}
+          onCurrencyChange={(value) =>
+            void run(() =>
+              updateWorkspace((s) => {
+                s.settings.baseCurrency = value;
+              }),
+            )
+          }
+        />
+        <DataSettings
+          busy={busy}
+          onClearImports={() => setConfirm('imported')}
+          onReset={() => setConfirm('local')}
+        />
+        <section id="sync" className="panel settings-panel">
+          <h2>Синхронизация</h2>
+          <p role="status">
             {device
               ? device.lastSyncAt
                 ? 'Защищённая синхронизация включена'
                 : 'Настройка синхронизации не завершена'
               : 'Только это устройство'}
-          </h2>
+          </p>
           <p>
             Перед отправкой данные шифруются на вашем устройстве. Сервер хранит
             зашифрованную копию и не получает ключ расшифровки.
@@ -151,18 +182,6 @@ export function LocalSettings({
                   onClick={() => void run(() => syncNow())}
                 >
                   Синхронизировать сейчас
-                </button>
-                <button
-                  disabled={busy}
-                  className="secondary-button"
-                  onClick={() =>
-                    void run(async () => {
-                      setSaved(false);
-                      setKey(await showRecovery());
-                    })
-                  }
-                >
-                  Подключить устройство / ключ восстановления
                 </button>
                 <button
                   disabled={busy}
@@ -210,32 +229,86 @@ export function LocalSettings({
             </div>
           )}
         </section>
-        <section className="panel settings-panel">
-          <h2>Восстановить данные</h2>
-          <div className="settings-tabs" role="tablist" aria-label="Способ восстановления">
-            <button type="button" role="tab" aria-selected={restoreMethod === 'key'} className={restoreMethod === 'key' ? 'active' : undefined} onClick={() => setRestoreMethod('key')}>Ключ</button>
-            <button type="button" role="tab" aria-selected={restoreMethod === 'backup'} className={restoreMethod === 'backup' ? 'active' : undefined} onClick={() => setRestoreMethod('backup')}>Резервная копия</button>
+        <section id="recovery" className="panel settings-panel">
+          <h2>Восстановление</h2>
+          {device && (
+            <button
+              disabled={busy}
+              className="secondary-button"
+              onClick={() =>
+                void run(async () => {
+                  setSaved(false);
+                  setKey(await showRecovery());
+                })
+              }
+            >
+              Подключить устройство / ключ восстановления
+            </button>
+          )}
+          <h3>Восстановить данные</h3>
+          <div
+            className="settings-tabs"
+            role="tablist"
+            aria-label="Способ восстановления"
+          >
+            <button
+              type="button"
+              role="tab"
+              aria-selected={restoreMethod === 'key'}
+              className={restoreMethod === 'key' ? 'active' : undefined}
+              onClick={() => setRestoreMethod('key')}
+            >
+              Ключ
+            </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={restoreMethod === 'backup'}
+              className={restoreMethod === 'backup' ? 'active' : undefined}
+              onClick={() => setRestoreMethod('backup')}
+            >
+              Резервная копия
+            </button>
           </div>
           {restoreMethod === 'key' ? (
             <label className="form-field">
               Ключ восстановления
-              <Input type="password" autoComplete="off" value={input} onChange={(e) => setInput(e.target.value)} placeholder="POTOK1:…" />
+              <Input
+                type="password"
+                autoComplete="off"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                placeholder="POTOK1:…"
+              />
             </label>
           ) : (
             <>
               <label className="form-field">
                 Выберите зашифрованную резервную копию
-                <input type="file" accept=".json" onChange={(e) => void run(async () => {
-                  const f = e.target.files?.[0];
-                  if (!f) return;
-                  if (f.size > 9 * 1024 * 1024) throw new Error('Файл слишком большой.');
-                  const data = JSON.parse(await f.text());
-                  setBackup(data.envelope);
-                })} />
+                <input
+                  type="file"
+                  accept=".json"
+                  onChange={(e) =>
+                    void run(async () => {
+                      const f = e.target.files?.[0];
+                      if (!f) return;
+                      if (f.size > 9 * 1024 * 1024)
+                        throw new Error('Файл слишком большой.');
+                      const data = JSON.parse(await f.text());
+                      setBackup(data.envelope);
+                    })
+                  }
+                />
               </label>
               <label className="form-field">
                 Ключ восстановления
-                <Input type="password" autoComplete="off" value={input} onChange={(e) => setInput(e.target.value)} placeholder="POTOK1:…" />
+                <Input
+                  type="password"
+                  autoComplete="off"
+                  value={input}
+                  onChange={(e) => setInput(e.target.value)}
+                  placeholder="POTOK1:…"
+                />
               </label>
             </>
           )}
@@ -246,9 +319,7 @@ export function LocalSettings({
           >
             Восстановить
           </button>
-        </section>
-        <section className="panel settings-panel">
-          <h2>Резервная копия</h2>
+          <h3>Создать резервную копию</h3>
           <p>
             Зашифрованный файл создаётся на устройстве. Сохраните его и
             отдельный ключ: они понадобятся вместе для восстановления.
@@ -271,58 +342,11 @@ export function LocalSettings({
             Скачать зашифрованную резервную копию
           </button>
         </section>
-        <section className="panel settings-panel">
-          <h2>Источники данных</h2>
-          <p>
-            {state.imports.length} импортов · {state.transactions.length}{' '}
-            операций
-          </p>
-          <a className="primary-button" href="/import">
-            Загрузить PDF / CSV / XLSX
-          </a>
-          <p>
-            Выписка анализируется на устройстве и не отправляется на сервер.
-          </p>
-          <button
-            disabled={busy}
-            className="danger-button"
-            onClick={() => setConfirm('imported')}
-          >
-            Удалить импортированные данные
-          </button>
-        </section>
-        <section className="panel settings-panel">
-          <h2>Валюта по умолчанию</h2>
-          <SelectField
-            label="Валюта по умолчанию"
-            value={state.settings.baseCurrency}
-            onChange={(value) =>
-              void run(() =>
-                updateWorkspace((s) => {
-                  s.settings.baseCurrency =
-                    value as Workspace['settings']['baseCurrency'];
-                }),
-              )
-            }
-            options={['RUB', 'USD', 'EUR', 'GBP', 'KZT', 'BYN', 'GEL', 'TRY'].map((c) => ({ value: c, label: c }))}
-          />
-        </section>
-        <section className="panel settings-panel">
-          <h2>На этом устройстве</h2>
-          <p>
-            Основные функции работают без сети после первой загрузки приложения.
-            Очистка данных браузера удалит локальные расходы и ключи устройства.
-            Для восстановления сохраните резервную копию или включите
-            синхронизацию и сохраните ключ.
-          </p>
-          <button
-            disabled={busy}
-            className="danger-button"
-            onClick={() => setConfirm('local')}
-          >
-            Удалить все локальные данные
-          </button>
-        </section>
+        <DataSources
+          imports={state.imports}
+          transactionCount={state.transactions.length}
+        />
+        <AboutFlow />
       </div>
       <Dialog
         open={!!key}

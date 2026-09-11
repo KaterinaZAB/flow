@@ -2158,9 +2158,13 @@ input[type='radio'] {
   .recognition-actions {
     grid-template-columns: 1fr;
   }
-  .import-steps li + li::before { display: none; }
+  .import-steps li + li::before {
+    display: none;
+  }
   .review-tabs,
-  .settings-tabs { flex-direction: column; }
+  .settings-tabs {
+    flex-direction: column;
+  }
 }
 .chart-grid {
   stroke: var(--border);
@@ -3616,4 +3620,35 @@ input[type='radio'] {
 }
 .auth-benefits svg {
   color: var(--success);
+}
+
+.settings-panel[id] {
+  scroll-margin-top: var(--space-6);
+}
+.settings-import-history {
+  margin-top: var(--space-6);
+}
+.settings-import-history summary {
+  cursor: pointer;
+  font-weight: 550;
+}
+.settings-import-history ul {
+  list-style: none;
+  padding: 0;
+  margin: var(--space-4) 0 0;
+}
+.settings-import-history li {
+  display: grid;
+  gap: var(--space-2);
+  padding: var(--space-4) 0;
+  border-top: 1px solid var(--border);
+  overflow-wrap: anywhere;
+}
+.settings-import-history li strong {
+  font-size: 0.875rem;
+  font-weight: 550;
+}
+.settings-import-history li span {
+  color: var(--text-secondary);
+  font-size: 0.8125rem;
 }
